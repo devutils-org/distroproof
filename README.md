@@ -21,3 +21,7 @@ L'édition de liens passe par `rust-lld` (voir `.cargo/config.toml`), ce qui
 permet aussi la compilation croisée depuis arm64.
 
 Feuille de route : [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Licence
+
+Au choix, sous [MIT](LICENSE-MIT) ou [Apache 2.0](LICENSE-APACHE).
