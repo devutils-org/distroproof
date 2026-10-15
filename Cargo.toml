@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = ["crates/envprobe-core", "crates/envprobe", "crates/distromatrix"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+envprobe-core = { path = "crates/envprobe-core" }
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

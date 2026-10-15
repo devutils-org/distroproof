@@ -1,0 +1,8 @@
+[package]
+name = "envprobe-core"
+description = "Sondes d'environnement Linux (userspace + kernel)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
