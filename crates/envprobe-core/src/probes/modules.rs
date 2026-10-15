@@ -41,6 +41,9 @@ fn loadable() -> Value {
     if util::read_trimmed("/proc/sys/kernel/modules_disabled").as_deref() == Ok("1") {
         return Value::ok("non (kernel.modules_disabled=1)");
     }
+    if privileges::initial_user_ns() == Some(false) {
+        return Value::ok("non (user namespace non initial)");
+    }
     match privileges::cap_eff() {
         Some(caps) if privileges::has_cap(caps, CAP_SYS_MODULE) => {
             Value::ok("oui (CAP_SYS_MODULE)")

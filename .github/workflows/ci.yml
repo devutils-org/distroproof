@@ -69,7 +69,28 @@ jobs:
             grep -E '^  seccomp +filtre' "docker-${image%%:*}.txt"
             echo "::endgroup::"
           done
+      - name: Rapports JSON et diff hôte / Alpine
+        run: |
+          ./envprobe --json > host.json
+          sudo ./envprobe --json > host-root.json
+          for image in debian:12 alpine:3.20 rockylinux:9; do
+            docker run --rm -v "$PWD/envprobe:/envprobe:ro" "$image" /envprobe --json > "docker-${image%%:*}.json"
+          done
+          set +e
+          ./envprobe diff --color always host.json docker-alpine.json
+          code=$?
+          set -e
+          test "$code" -eq 1
+          ./envprobe diff --color never host.json docker-alpine.json > diff.txt || true
+          grep -q '^\[libc\]' diff.txt
+          grep -q '^\[shell\]' diff.txt
+          grep -q '^\[packages\]' diff.txt
+          # Même noyau : la release ne change pas. La config peut manquer dans
+          # le conteneur (/boot absent), d'où la vérification sur release seule.
+          ! grep -qE '^[-+] release ' diff.txt
       - uses: actions/upload-artifact@v4
         with:
           name: envprobe-reports
-          path: "*.txt"
+          path: |
+            *.txt
+            *.json

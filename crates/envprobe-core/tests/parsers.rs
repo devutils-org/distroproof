@@ -137,8 +137,11 @@ fn ldconfig_output() {
 
 #[test]
 fn probe_all_covers_every_category_without_panicking() {
-    let names: Vec<&str> = envprobe_core::probe_all().iter().map(|s| s.name).collect();
-    let expected: Vec<&str> = envprobe_core::probes::ALL.iter().map(|(n, _)| *n).collect();
+    let names: Vec<String> = envprobe_core::probe_all()
+        .into_iter()
+        .map(|s| s.name)
+        .collect();
+    let expected: Vec<&str> = envprobe_core::section_names().collect();
     assert_eq!(names, expected);
     assert_eq!(names.len(), 18);
 }

@@ -51,3 +51,24 @@ fn ids(value: &str) -> Option<[u32; 4]> {
     }
     Some(out)
 }
+
+/// `/proc/<pid>/uid_map` du user namespace initial : `0 0 4294967295`.
+pub fn is_initial_uid_map(map: &str) -> bool {
+    let lines: Vec<Vec<&str>> = map
+        .lines()
+        .map(|l| l.split_whitespace().collect())
+        .collect();
+    lines == [vec!["0", "0", "4294967295"]]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uid_maps() {
+        assert!(is_initial_uid_map("         0          0 4294967295\n"));
+        assert!(!is_initial_uid_map("         0        501          1\n"));
+        assert!(!is_initial_uid_map(""));
+    }
+}

@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "Entry": {
+      "description": "Une information du rapport.",
+      "oneOf": [
+        {
+          "description": "Valeur obtenue.",
+          "properties": {
+            "status": {
+              "const": "ok",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Information absente ou impossible à obtenir (fichier absent, syscall inexistant…) ; contient la raison.",
+          "properties": {
+            "status": {
+              "const": "unavailable",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Accès refusé (EPERM, EACCES, seccomp…) ; contient l'errno et le contexte.",
+          "properties": {
+            "status": {
+              "const": "denied",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "value"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "privileged": {
+          "description": "Le résultat change selon les privilèges du processus (root, capabilities).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "key",
+        "privileged"
+      ],
+      "type": "object"
+    },
+    "Section": {
+      "description": "Une catégorie du rapport, par exemple « kernel » ou « bpf ».",
+      "properties": {
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/Entry"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "entries"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Rapport complet, tel qu'écrit par `envprobe --json`.",
+  "properties": {
+    "envprobe_version": {
+      "type": "string"
+    },
+    "schema_version": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/Section"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "envprobe_version",
+    "sections"
+  ],
+  "title": "Report",
+  "type": "object"
+}

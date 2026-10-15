@@ -35,12 +35,26 @@ pub(crate) fn cap_eff() -> Option<u64> {
     self_status().ok()?.cap_eff()
 }
 
+/// Vrai dans le user namespace initial. Ailleurs, les capabilities ne valent
+/// que dans le namespace : CAP_BPF affiché n'autorise pas `bpf()`.
+pub(crate) fn initial_user_ns() -> Option<bool> {
+    let map = fs::read_to_string("/proc/self/uid_map").ok()?;
+    Some(crate::parse::status::is_initial_uid_map(&map))
+}
+
 pub fn probe() -> Section {
     let mut s = Section::new("privileges");
     let status = match self_status() {
         Ok(st) => st,
         Err(err) => {
-            for key in ["uid", "euid", "cap_eff", "seccomp", "no_new_privs"] {
+            for key in [
+                "uid",
+                "euid",
+                "cap_eff",
+                "user_namespace",
+                "seccomp",
+                "no_new_privs",
+            ] {
                 s.push_privileged(key, err.clone());
             }
             return s;
@@ -69,6 +83,14 @@ pub fn probe() -> Section {
         }
         None => s.push_privileged("cap_eff", missing("CapEff")),
     }
+    s.push_privileged(
+        "user_namespace",
+        match initial_user_ns() {
+            Some(true) => Value::ok("initial"),
+            Some(false) => Value::ok("non initial (capabilities limitées au namespace)"),
+            None => Value::unavailable("/proc/self/uid_map illisible"),
+        },
+    );
     s.push_privileged(
         "seccomp",
         match status.seccomp() {
