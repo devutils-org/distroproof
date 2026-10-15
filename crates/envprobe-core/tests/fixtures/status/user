@@ -1,0 +1,33 @@
+Name:	cat
+Umask:	0022
+State:	R (running)
+Tgid:	4242
+Ngid:	0
+Pid:	4242
+PPid:	1200
+TracerPid:	0
+Uid:	1000	1000	1000	1000
+Gid:	1000	1000	1000	1000
+FDSize:	256
+Groups:	4 27 1000
+NStgid:	4242
+NSpid:	4242
+NSpgid:	4242
+NSsid:	1200
+Kthread:	0
+VmPeak:	    5684 kB
+VmSize:	    5684 kB
+Threads:	1
+SigQ:	0/63412
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	thread vulnerable
+Cpus_allowed_list:	0-7
+voluntary_ctxt_switches:	0
+nonvoluntary_ctxt_switches:	1

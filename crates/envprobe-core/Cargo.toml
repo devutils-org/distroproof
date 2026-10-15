@@ -7,3 +7,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+flate2.workspace = true
+libc.workspace = true

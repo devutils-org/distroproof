@@ -21,14 +21,19 @@ fn main() -> ExitCode {
 
     let sections = envprobe_core::probe_all();
     println!("envprobe {}", env!("CARGO_PKG_VERSION"));
-    if sections.is_empty() {
-        println!("aucune sonde disponible");
-    }
     for section in &sections {
         println!("\n[{}]", section.name);
-        for (key, value) in &section.entries {
-            println!("  {key}: {value}");
+        let width = section
+            .entries
+            .iter()
+            .map(|e| e.key.chars().count())
+            .max()
+            .unwrap_or(0);
+        for entry in &section.entries {
+            let mark = if entry.privileged { " *" } else { "" };
+            println!("  {:<width$}  {}{mark}", entry.key, entry.value);
         }
     }
+    println!("\n* résultat dépendant des privilèges");
     ExitCode::SUCCESS
 }

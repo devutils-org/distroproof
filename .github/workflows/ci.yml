@@ -42,3 +42,34 @@ jobs:
         with:
           name: envprobe-x86_64-linux-musl
           path: target/x86_64-unknown-linux-musl/release/envprobe
+
+  probe:
+    needs: build-musl
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: envprobe-x86_64-linux-musl
+      - run: chmod +x envprobe
+      - name: Utilisateur normal
+        run: ./envprobe | tee user.txt
+      - name: Root
+        run: sudo ./envprobe | tee root.txt
+      - name: La sortie diffère selon les privilèges
+        run: |
+          ! diff -q user.txt root.txt
+          grep -E '^  CAP_BPF +non' user.txt
+          grep -E '^  CAP_BPF +oui' root.txt
+      - name: Conteneurs Docker par défaut
+        run: |
+          for image in debian:12 alpine:3.20 rockylinux:9; do
+            echo "::group::$image"
+            docker run --rm -v "$PWD/envprobe:/envprobe:ro" "$image" /envprobe | tee "docker-${image%%:*}.txt"
+            grep -E '^  container +docker' "docker-${image%%:*}.txt"
+            grep -E '^  seccomp +filtre' "docker-${image%%:*}.txt"
+            echo "::endgroup::"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: envprobe-reports
+          path: "*.txt"
