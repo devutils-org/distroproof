@@ -1,5 +1,5 @@
 [package]
-name = "distromatrix"
+name = "distroproof"
 description = "Lance un programme dans une matrice de VM de distros"
 version.workspace = true
 edition.workspace = true

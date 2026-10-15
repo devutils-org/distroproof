@@ -1,4 +1,4 @@
-# distromatrix
+# distroproof
 
 POC Rust : décrire précisément un environnement Linux (userspace + kernel), puis
 lancer un programme dans des VM de distros cibles et comparer les résultats.
@@ -7,7 +7,7 @@ lancer un programme dans des VM de distros cibles et comparer les résultats.
 | --- | --- |
 | `envprobe-core` | bibliothèque des sondes |
 | `envprobe` | CLI de la sonde |
-| `distromatrix` | orchestrateur de VM (à venir) |
+| `distroproof` | orchestrateur de VM (à venir) |
 
 ## Build
 

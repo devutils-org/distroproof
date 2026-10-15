@@ -1,12 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["crates/envprobe-core", "crates/envprobe", "crates/distromatrix"]
+members = ["crates/envprobe-core", "crates/envprobe", "crates/distroproof"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/moha-bekh/distromatrix"
+repository = "https://github.com/moha-bekh/distroproof"
 
 [workspace.dependencies]
 envprobe-core = { path = "crates/envprobe-core" }
