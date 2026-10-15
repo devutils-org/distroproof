@@ -1,0 +1,1098 @@
+{
+  "schema_version": 1,
+  "envprobe_version": "0.1.0",
+  "sections": [
+    {
+      "name": "identity",
+      "entries": [
+        {
+          "key": "os_release",
+          "status": "ok",
+          "value": "/etc/os-release",
+          "privileged": false
+        },
+        {
+          "key": "distro",
+          "status": "ok",
+          "value": "Debian GNU/Linux 12 (bookworm)",
+          "privileged": false
+        },
+        {
+          "key": "id",
+          "status": "ok",
+          "value": "debian",
+          "privileged": false
+        },
+        {
+          "key": "version_id",
+          "status": "ok",
+          "value": "12",
+          "privileged": false
+        },
+        {
+          "key": "id_like",
+          "status": "unavailable",
+          "value": "ID_LIKE non défini",
+          "privileged": false
+        },
+        {
+          "key": "arch",
+          "status": "ok",
+          "value": "aarch64",
+          "privileged": false
+        },
+        {
+          "key": "virtualization",
+          "status": "ok",
+          "value": "orbstack,virt (device tree)",
+          "privileged": false
+        },
+        {
+          "key": "container",
+          "status": "ok",
+          "value": "aucun détecté",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "kernel",
+      "entries": [
+        {
+          "key": "release",
+          "status": "ok",
+          "value": "7.2.9-orbstack-00391-g2b298d05fbd4",
+          "privileged": false
+        },
+        {
+          "key": "version",
+          "status": "ok",
+          "value": "#1 SMP PREEMPT Mon Oct 12 05:39:36 UTC 2026",
+          "privileged": false
+        },
+        {
+          "key": "cmdline",
+          "status": "ok",
+          "value": "init=/opt/orb/vinit workqueue.power_efficient=1 cgroup.memory=nokmem,nosocket swiotlb=noforce slab_min_order=2 cgroup_v1_proc=1 nbd.nbds_max=4 can.stats_timer=0 isolcpus=7 arm64.nosme root=/dev/vda rootfstype=erofs ro console=hvc0 quiet ORB_S=<masqué> earlycon=pl011,mmio32,0x40001000",
+          "privileged": false
+        },
+        {
+          "key": "config_source",
+          "status": "ok",
+          "value": "/proc/config.gz",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_BPF",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_BPF_SYSCALL",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_BPF_JIT",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_BPF_EVENTS",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_BPF_LSM",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_KPROBES",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_UPROBES",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_FTRACE",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_DEBUG_INFO_BTF",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_PERF_EVENTS",
+          "status": "ok",
+          "value": "absente de la config",
+          "privileged": false
+        },
+        {
+          "key": "CONFIG_MODULES",
+          "status": "ok",
+          "value": "y",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "modules",
+      "entries": [
+        {
+          "key": "loaded_count",
+          "status": "ok",
+          "value": "2",
+          "privileged": false
+        },
+        {
+          "key": "loaded",
+          "status": "ok",
+          "value": "sch_netem, cfg80211",
+          "privileged": false
+        },
+        {
+          "key": "loadable",
+          "status": "ok",
+          "value": "non (user namespace non initial)",
+          "privileged": true
+        }
+      ]
+    },
+    {
+      "name": "sysctl",
+      "entries": [
+        {
+          "key": "kernel.perf_event_paranoid",
+          "status": "ok",
+          "value": "2",
+          "privileged": false
+        },
+        {
+          "key": "kernel.perf_event_max_sample_rate",
+          "status": "ok",
+          "value": "100000",
+          "privileged": false
+        },
+        {
+          "key": "kernel.unprivileged_bpf_disabled",
+          "status": "ok",
+          "value": "2",
+          "privileged": false
+        },
+        {
+          "key": "net.core.bpf_jit_enable",
+          "status": "unavailable",
+          "value": "/proc/sys/net/core/bpf_jit_enable absent",
+          "privileged": false
+        },
+        {
+          "key": "net.core.bpf_jit_harden",
+          "status": "unavailable",
+          "value": "/proc/sys/net/core/bpf_jit_harden absent",
+          "privileged": false
+        },
+        {
+          "key": "kernel.kptr_restrict",
+          "status": "ok",
+          "value": "1",
+          "privileged": false
+        },
+        {
+          "key": "kernel.dmesg_restrict",
+          "status": "ok",
+          "value": "1",
+          "privileged": false
+        },
+        {
+          "key": "kernel.yama.ptrace_scope",
+          "status": "ok",
+          "value": "1",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "security",
+      "entries": [
+        {
+          "key": "lsm",
+          "status": "ok",
+          "value": "capability,landlock,yama,bpf",
+          "privileged": false
+        },
+        {
+          "key": "selinux",
+          "status": "ok",
+          "value": "absent",
+          "privileged": false
+        },
+        {
+          "key": "apparmor",
+          "status": "ok",
+          "value": "absent",
+          "privileged": false
+        },
+        {
+          "key": "apparmor_profiles",
+          "status": "unavailable",
+          "value": "/sys/kernel/security/apparmor/profiles absent",
+          "privileged": true
+        },
+        {
+          "key": "lockdown",
+          "status": "unavailable",
+          "value": "/sys/kernel/security/lockdown absent",
+          "privileged": false
+        },
+        {
+          "key": "secure_boot",
+          "status": "ok",
+          "value": "non (démarrage non EFI)",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "privileges",
+      "entries": [
+        {
+          "key": "uid",
+          "status": "ok",
+          "value": "0",
+          "privileged": true
+        },
+        {
+          "key": "euid",
+          "status": "ok",
+          "value": "0",
+          "privileged": true
+        },
+        {
+          "key": "cap_eff",
+          "status": "ok",
+          "value": "0x000001ffffffffff",
+          "privileged": true
+        },
+        {
+          "key": "CAP_BPF",
+          "status": "ok",
+          "value": "oui",
+          "privileged": true
+        },
+        {
+          "key": "CAP_PERFMON",
+          "status": "ok",
+          "value": "oui",
+          "privileged": true
+        },
+        {
+          "key": "CAP_SYS_ADMIN",
+          "status": "ok",
+          "value": "oui",
+          "privileged": true
+        },
+        {
+          "key": "CAP_SYS_PTRACE",
+          "status": "ok",
+          "value": "oui",
+          "privileged": true
+        },
+        {
+          "key": "CAP_SYS_MODULE",
+          "status": "ok",
+          "value": "oui",
+          "privileged": true
+        },
+        {
+          "key": "user_namespace",
+          "status": "ok",
+          "value": "non initial (capabilities limitées au namespace)",
+          "privileged": true
+        },
+        {
+          "key": "seccomp",
+          "status": "ok",
+          "value": "désactivé",
+          "privileged": true
+        },
+        {
+          "key": "no_new_privs",
+          "status": "ok",
+          "value": "non",
+          "privileged": true
+        }
+      ]
+    },
+    {
+      "name": "btf",
+      "entries": [
+        {
+          "key": "vmlinux",
+          "status": "ok",
+          "value": "présent, 5279975 octets",
+          "privileged": false
+        },
+        {
+          "key": "modules",
+          "status": "ok",
+          "value": "2",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "bpf",
+      "entries": [
+        {
+          "key": "syscall",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "jit",
+          "status": "unavailable",
+          "value": "/proc/sys/net/core/bpf_jit_enable absent",
+          "privileged": false
+        },
+        {
+          "key": "prog.socket_filter",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.kprobe",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.sched_cls",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.sched_act",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.tracepoint",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.xdp",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.perf_event",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.cgroup_skb",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.cgroup_sock",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.lwt_in",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.lwt_out",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.lwt_xmit",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.sock_ops",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.sk_skb",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.cgroup_device",
+          "status": "ok",
+          "value": "supporté",
+          "privileged": true
+        },
+        {
+          "key": "prog.sk_msg",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.raw_tracepoint",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.cgroup_sock_addr",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.lwt_seg6local",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.lirc_mode2",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.sk_reuseport",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.flow_dissector",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.cgroup_sysctl",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.raw_tracepoint_writable",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.cgroup_sockopt",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.sk_lookup",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.syscall",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.netfilter",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "prog.tracing",
+          "status": "unavailable",
+          "value": "non sondé : nécessite une cible BTF",
+          "privileged": false
+        },
+        {
+          "key": "prog.struct_ops",
+          "status": "unavailable",
+          "value": "non sondé : nécessite une cible BTF",
+          "privileged": false
+        },
+        {
+          "key": "prog.ext",
+          "status": "unavailable",
+          "value": "non sondé : nécessite une cible BTF",
+          "privileged": false
+        },
+        {
+          "key": "prog.lsm",
+          "status": "unavailable",
+          "value": "non sondé : nécessite une cible BTF",
+          "privileged": false
+        },
+        {
+          "key": "map.hash",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.array",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.prog_array",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.perf_event_array",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.percpu_hash",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.percpu_array",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.stack_trace",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.cgroup_array",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.lru_hash",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.lru_percpu_hash",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.lpm_trie",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.devmap",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.sockmap",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.cpumap",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.xskmap",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.sockhash",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.queue",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.stack",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.devmap_hash",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.ringbuf",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.bloom_filter",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "map.user_ringbuf",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.ktime_get_ns",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.trace_printk",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.get_current_pid_tgid",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.get_current_comm",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.perf_event_output",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.get_stackid",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.override_return",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.get_stack",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.send_signal",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.probe_read_user",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.probe_read_kernel",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.ktime_get_boot_ns",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.ringbuf_output",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        },
+        {
+          "key": "helper.get_current_task_btf",
+          "status": "denied",
+          "value": "EPERM",
+          "privileged": true
+        }
+      ]
+    },
+    {
+      "name": "perf",
+      "entries": [
+        {
+          "key": "sw_cpu_clock.user",
+          "status": "ok",
+          "value": "ouvert",
+          "privileged": true
+        },
+        {
+          "key": "sw_cpu_clock.kernel",
+          "status": "denied",
+          "value": "EACCES",
+          "privileged": true
+        },
+        {
+          "key": "hw_cpu_cycles.user",
+          "status": "ok",
+          "value": "non supporté (ENOENT)",
+          "privileged": true
+        },
+        {
+          "key": "hw_cpu_cycles.kernel",
+          "status": "denied",
+          "value": "EACCES",
+          "privileged": true
+        },
+        {
+          "key": "pmus",
+          "status": "ok",
+          "value": "breakpoint, kprobe, software, tracepoint, uprobe",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "tracing",
+      "entries": [
+        {
+          "key": "tracefs",
+          "status": "ok",
+          "value": "/sys/kernel/tracing, /sys/kernel/debug/tracing",
+          "privileged": false
+        },
+        {
+          "key": "debugfs",
+          "status": "ok",
+          "value": "/sys/kernel/debug",
+          "privileged": false
+        },
+        {
+          "key": "tracing_dir",
+          "status": "denied",
+          "value": "EACCES : /sys/kernel/tracing",
+          "privileged": true
+        },
+        {
+          "key": "debug_tracing_dir",
+          "status": "denied",
+          "value": "EACCES : /sys/kernel/debug/tracing",
+          "privileged": true
+        },
+        {
+          "key": "kallsyms",
+          "status": "ok",
+          "value": "lisible, adresses masquées (kptr_restrict)",
+          "privileged": true
+        }
+      ]
+    },
+    {
+      "name": "libc",
+      "entries": [
+        {
+          "key": "interpreter",
+          "status": "ok",
+          "value": "/lib/ld-linux-aarch64.so.1",
+          "privileged": false
+        },
+        {
+          "key": "kind",
+          "status": "ok",
+          "value": "glibc",
+          "privileged": false
+        },
+        {
+          "key": "version",
+          "status": "ok",
+          "value": "2.36 (/lib/aarch64-linux-gnu/libc.so.6)",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "libs",
+      "entries": [
+        {
+          "key": "source",
+          "status": "ok",
+          "value": "scan des répertoires",
+          "privileged": false
+        },
+        {
+          "key": "libbpf",
+          "status": "ok",
+          "value": "/usr/lib/aarch64-linux-gnu/libbpf.so.1.1.2",
+          "privileged": false
+        },
+        {
+          "key": "libelf",
+          "status": "ok",
+          "value": "/usr/lib/aarch64-linux-gnu/libelf-0.188.so",
+          "privileged": false
+        },
+        {
+          "key": "zlib",
+          "status": "ok",
+          "value": "/usr/lib/aarch64-linux-gnu/libz.so.1.2.13",
+          "privileged": false
+        },
+        {
+          "key": "libssl",
+          "status": "ok",
+          "value": "/usr/lib/aarch64-linux-gnu/libssl.so.3",
+          "privileged": false
+        },
+        {
+          "key": "libcrypto",
+          "status": "ok",
+          "value": "/usr/lib/aarch64-linux-gnu/libcrypto.so.3",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "fhs",
+      "entries": [
+        {
+          "key": "/bin",
+          "status": "ok",
+          "value": "→ usr/bin",
+          "privileged": false
+        },
+        {
+          "key": "/sbin",
+          "status": "ok",
+          "value": "→ usr/sbin",
+          "privileged": false
+        },
+        {
+          "key": "/lib",
+          "status": "ok",
+          "value": "→ usr/lib",
+          "privileged": false
+        },
+        {
+          "key": "merged_usr",
+          "status": "ok",
+          "value": "oui",
+          "privileged": false
+        },
+        {
+          "key": "/lib64",
+          "status": "ok",
+          "value": "absent",
+          "privileged": false
+        },
+        {
+          "key": "multiarch",
+          "status": "ok",
+          "value": "oui (/usr/lib/aarch64-linux-gnu)",
+          "privileged": false
+        },
+        {
+          "key": "lib_dirs",
+          "status": "ok",
+          "value": "/lib, /usr/lib, /usr/lib/aarch64-linux-gnu, /usr/local/lib",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "shell",
+      "entries": [
+        {
+          "key": "sh",
+          "status": "ok",
+          "value": "/usr/bin/dash",
+          "privileged": false
+        },
+        {
+          "key": "coreutils",
+          "status": "ok",
+          "value": "GNU coreutils (/usr/bin/ls)",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "init",
+      "entries": [
+        {
+          "key": "kind",
+          "status": "ok",
+          "value": "autre (envprobe)",
+          "privileged": false
+        },
+        {
+          "key": "comm",
+          "status": "ok",
+          "value": "envprobe",
+          "privileged": false
+        },
+        {
+          "key": "exe",
+          "status": "ok",
+          "value": "/envprobe",
+          "privileged": true
+        }
+      ]
+    },
+    {
+      "name": "packages",
+      "entries": [
+        {
+          "key": "managers",
+          "status": "ok",
+          "value": "apt, dpkg",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "cgroups",
+      "entries": [
+        {
+          "key": "mode",
+          "status": "ok",
+          "value": "v2",
+          "privileged": false
+        },
+        {
+          "key": "controllers",
+          "status": "ok",
+          "value": "cpuset cpu io memory pids",
+          "privileged": false
+        },
+        {
+          "key": "self",
+          "status": "ok",
+          "value": "0::/user.slice/user-501.slice/user@501.service/app.slice/app-tmux.slice/tmux-spawn-01628fff-783d-4cba-be5d-e1467f385bf0.scope",
+          "privileged": false
+        }
+      ]
+    },
+    {
+      "name": "xdg",
+      "entries": [
+        {
+          "key": "XDG_CONFIG_HOME",
+          "status": "ok",
+          "value": "/home/moha/.config (défaut)",
+          "privileged": false
+        },
+        {
+          "key": "XDG_DATA_HOME",
+          "status": "ok",
+          "value": "/home/moha/.local/share (défaut)",
+          "privileged": false
+        },
+        {
+          "key": "XDG_CACHE_HOME",
+          "status": "ok",
+          "value": "/home/moha/.cache (défaut)",
+          "privileged": false
+        },
+        {
+          "key": "XDG_STATE_HOME",
+          "status": "ok",
+          "value": "/home/moha/.local/state (défaut)",
+          "privileged": false
+        },
+        {
+          "key": "XDG_RUNTIME_DIR",
+          "status": "ok",
+          "value": "/run/user/501 (défini)",
+          "privileged": false
+        },
+        {
+          "key": "XDG_DATA_DIRS",
+          "status": "ok",
+          "value": "/usr/local/share:/usr/share (défaut)",
+          "privileged": false
+        },
+        {
+          "key": "XDG_CONFIG_DIRS",
+          "status": "ok",
+          "value": "/etc/xdg (défaut)",
+          "privileged": false
+        },
+        {
+          "key": "XDG_SESSION_TYPE",
+          "status": "ok",
+          "value": "tty (défini)",
+          "privileged": false
+        },
+        {
+          "key": "XDG_CURRENT_DESKTOP",
+          "status": "ok",
+          "value": "non défini",
+          "privileged": false
+        }
+      ]
+    }
+  ]
+}

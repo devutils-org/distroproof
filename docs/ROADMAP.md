@@ -1,10 +1,10 @@
-# Roadmap — distromatrix (POC Rust)
+# Roadmap — distroproof (POC Rust)
 
 Oct 9, 2026 · @Mohamed Bekheira
 
 ## Vision et conventions
 
-Objectif du POC : un outil Rust qui décrit précisément un environnement Linux (userspace + kernel), puis lance des VM « distro cible » pour y exécuter un programme et comparer les résultats. Nom de travail : `distromatrix`. On commence par la sonde (`envprobe`), seule et utile dès la phase 1.
+Objectif du POC : un outil Rust qui décrit précisément un environnement Linux (userspace + kernel), puis lance des VM « distro cible » pour y exécuter un programme et comparer les résultats. Nom : `distroproof`. On commence par la sonde (`envprobe`), seule et utile dès la phase 1.
 
 Chaque phase est autonome : un agent la réalise sans lire les suivantes. Une phase n'est terminée que lorsque tous ses critères de sortie sont cochés.
 
@@ -24,7 +24,7 @@ But : un squelette qui compile en statique et tourne en CI, avant toute fonction
 
 Tâches :
 
-1. Créer un workspace Cargo avec trois crates : `envprobe-core` (lib, les sondes), `envprobe` (binaire CLI) et `distromatrix` (binaire orchestrateur, vide pour l'instant).
+1. Créer un workspace Cargo avec trois crates : `envprobe-core` (lib, les sondes), `envprobe` (binaire CLI) et `distroproof` (binaire orchestrateur, vide pour l'instant).
 2. Ajouter la cible musl et un profil release optimisé taille (`lto`, `strip`, `opt-level = "s"`).
 3. CLI avec `clap` : `envprobe` sans argument affiche un résumé lisible ; `--json` est réservé pour la phase 2.
 4. CI GitHub Actions : fmt, clippy, tests, build musl, et vérification que le binaire est bien statique (`file` ou `ldd` → « not a dynamic executable »).
@@ -92,12 +92,12 @@ Critères de sortie :
 
 ## Phase 3 — VM avec noyau et rootfs de distro
 
-But : `distromatrix run --target debian-12 -- envprobe --json` démarre une VM avec le **vrai noyau de la distro** et son rootfs, y lance la commande et récupère la sortie. C'est la phase la plus risquée : commencer par une seule cible qui marche de bout en bout.
+But : `distroproof run --target debian-12 -- envprobe --json` démarre une VM avec le **vrai noyau de la distro** et son rootfs, y lance la commande et récupère la sortie. C'est la phase la plus risquée : commencer par une seule cible qui marche de bout en bout.
 
 Tâches :
 
 1. Choix techniques : QEMU + KVM piloté en sous-processus (pas de lib de virtualisation au début). Images cloud officielles des distros (qcow2) comme source, car elles contiennent noyau, initramfs et config d'origine.
-2. Cache local dans `$XDG_CACHE_HOME/distromatrix/images` : téléchargement, vérification du checksum publié, overlay qcow2 jetable par exécution.
+2. Cache local dans `$XDG_CACHE_HOME/distroproof/images` : téléchargement, vérification du checksum publié, overlay qcow2 jetable par exécution.
 3. Injection : partage du répertoire de travail via virtiofs ou 9p, ou à défaut une seconde image disque. Configuration initiale via cloud-init (seed ISO) pour créer l'utilisateur et lancer la commande.
 4. Récupération de stdout, stderr et du code de retour via la console série (`-serial`) ou virtio-vsock, puis extinction propre de la VM.
 5. Timeouts et nettoyage garantis, même si la VM ne boote pas.
@@ -116,9 +116,9 @@ Critères de sortie :
 
 ## Phase 4 — Fichier déclaratif et matrice
 
-But : décrire sa matrice de test dans un fichier versionné du projet testé, à la manière d'une infra as code. `distromatrix up` lit le fichier et lance toutes les cibles en parallèle.
+But : décrire sa matrice de test dans un fichier versionné du projet testé, à la manière d'une infra as code. `distroproof up` lit le fichier et lance toutes les cibles en parallèle.
 
-Exemple de format visé (`distromatrix.toml`) :
+Exemple de format visé (`distroproof.toml`) :
 
 ```toml
 [defaults]
@@ -198,7 +198,7 @@ Interactions :
 - Actions sur une cible : relancer, tuer, mettre en pause et reprendre (QMP `stop` / `cont`), ouvrir la console, lancer un diff.
 - Filtrer les cibles par état (échecs seulement, en cours…).
 
-Rendu : thèmes configurables dans `$XDG_CONFIG_HOME/distromatrix/theme.toml`, true color avec repli 256 couleurs, caractères Braille pour les graphes comme btop. Activée seulement si stdout est un TTY ou avec `--tui` ; sinon repli automatique sur la sortie texte, ce qui garde la CI intacte.
+Rendu : thèmes configurables dans `$XDG_CONFIG_HOME/distroproof/theme.toml`, true color avec repli 256 couleurs, caractères Braille pour les graphes comme btop. Activée seulement si stdout est un TTY ou avec `--tui` ; sinon repli automatique sur la sortie texte, ce qui garde la CI intacte.
 
 Critères de sortie :
 
