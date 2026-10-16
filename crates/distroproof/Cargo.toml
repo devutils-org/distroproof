@@ -7,3 +7,15 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+envprobe-core.workspace = true
+clap = { workspace = true, features = ["env"] }
+libc.workspace = true
+ratatui.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tar.workspace = true
+tokio.workspace = true
+toml.workspace = true
+tui-term.workspace = true
+vt100.workspace = true
