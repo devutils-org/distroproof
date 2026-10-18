@@ -38,10 +38,14 @@ jobs:
           file "$bin" | grep -Eq 'statically linked|static-pie linked'
           ! ldd "$bin" 2>&1 | grep -q '=>'
       - run: target/x86_64-unknown-linux-musl/release/envprobe --version
+      - name: Stage binary and licenses
+        run: |
+          mkdir -p dist/envprobe
+          cp target/x86_64-unknown-linux-musl/release/envprobe LICENSE-MIT LICENSE-APACHE dist/envprobe/
       - uses: actions/upload-artifact@v4
         with:
           name: envprobe-x86_64-linux-musl
-          path: target/x86_64-unknown-linux-musl/release/envprobe
+          path: dist/envprobe/
 
   probe:
     needs: build-musl
