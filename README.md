@@ -15,6 +15,19 @@ it.
 Every phase of the POC is implemented: the `envprobe` probe (usable on its
 own) and the `distroproof` orchestrator (VMs, matrix, report, TUI).
 
+## In practice: Omniscient
+
+[Omniscient](https://github.com/moha-bekh/omniscient), a kernel-facing
+observability tool (eBPF, perf, BTF, file capabilities), was ported with
+distroproof across 16 distributions and 5 variants. It found 16 defects that
+its development machine never showed -- a release that would not start on a
+third of the images, Debian's `perf_event_paranoid` 3 refusing what
+CAP_PERFMON should allow, eBPF maps charged to a 64 KiB `RLIMIT_MEMLOCK` on
+5.10, lockdown, a kernel without ftrace, a renamed kernel struct member,
+version assumptions RHEL's backports disproved -- each tied to the envprobe
+fact that explained it. The case study, finding by finding:
+[What distroproof found in Omniscient](https://github.com/moha-bekh/omniscient/blob/main/docs/distroproof.md).
+
 ## Status
 
 | Phase | Scope | Status |
