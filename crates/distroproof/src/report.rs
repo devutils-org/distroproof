@@ -752,6 +752,8 @@ mod tests {
             include: Vec::new(),
             probe: true,
             hold: false,
+            file_caps: Default::default(),
+            collect: Vec::new(),
         }
     }
 

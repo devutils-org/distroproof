@@ -195,7 +195,19 @@ command = "./target/release/mytool --selftest"
 as_user = "test"                      # or "root"
 # exclude = [".git", "target"]        # copied to /distroproof/work
 # include = ["target/release/mytool"]
+# file_caps = { "/opt/mytool/bin/mytool" = ["bpf", "perfmon"] }  # setcap after setup
+# collect = ["results/*.json"]        # brought back to .distroproof/collect/<target>/
 ```
+
+`setup` and `command` see `DP_TARGET` (the target's name) and `DP_IMAGE`.
+`file_caps` grants file capabilities on an installed binary, as root, after
+`setup` -- what a package's install does -- where `caps` raises ambient
+capabilities on the user, which every program the command starts inherits;
+a kernel that predates a capability (before 5.8 for `bpf` and `perfmon`) is
+a warning naming `cap_last_cap`. `collect` copies the files matching each
+pattern, relative to the working directory, back to
+`.distroproof/collect/<target>/` after the command, and lists them in the
+report's `collected`.
 
 Errors (unknown key, nonexistent image, invalid duration…) are reported with
 their line and column, without starting any VM. `distroproof up` runs the

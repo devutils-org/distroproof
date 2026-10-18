@@ -16,6 +16,12 @@ pub const CONFIG_KEYS: &[&str] = &[
     "CONFIG_KPROBES",
     "CONFIG_UPROBES",
     "CONFIG_FTRACE",
+    // Whether a trampoline can be installed: without the function tracer the
+    // kernel's functions carry no call site, and every fentry/fexit attach is
+    // refused although the program loads (Alpine's `virt` kernel).
+    "CONFIG_FUNCTION_TRACER",
+    "CONFIG_DYNAMIC_FTRACE",
+    "CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS",
     "CONFIG_DEBUG_INFO_BTF",
     "CONFIG_PERF_EVENTS",
     "CONFIG_MODULES",

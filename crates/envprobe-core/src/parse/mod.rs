@@ -4,6 +4,7 @@ pub mod elf;
 pub mod kconfig;
 pub mod ldconfig;
 pub mod libc_version;
+pub mod limits;
 pub mod mounts;
 pub mod os_release;
 pub mod status;

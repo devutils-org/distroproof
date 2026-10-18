@@ -40,6 +40,14 @@ pub struct VmSpec {
     /// Keep the VM up after the command, with a root shell on the serial
     /// console, until it is killed.
     pub hold: bool,
+    /// Files whose capabilities are set as root after `setup`, by path:
+    /// `setcap cap_<a>,cap_<b>+ep <path>`. A file capability is what a
+    /// program's install grants; `caps` raises ambient ones on the user, which
+    /// every program the command starts inherits.
+    pub file_caps: BTreeMap<String, Vec<String>>,
+    /// Paths, relative to the working directory, copied back after the
+    /// command into `<workdir>/.distroproof/collect/<target>/`.
+    pub collect: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -121,6 +129,9 @@ pub struct TargetResult {
     /// Last lines of the serial console, useful when the boot fails.
     #[serde(default)]
     pub console_tail: String,
+    /// Files brought back by `collect`, as written on the host.
+    #[serde(default)]
+    pub collected: Vec<String>,
 }
 
 impl TargetResult {
@@ -146,6 +157,7 @@ impl TargetResult {
             warnings: Vec::new(),
             error: None,
             console_tail: String::new(),
+            collected: Vec::new(),
         }
     }
 

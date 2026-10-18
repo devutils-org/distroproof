@@ -304,6 +304,8 @@ async fn cmd_run(args: RunArgs) -> Result<ExitCode, String> {
         include: Vec::new(),
         probe: args.probe,
         hold: false,
+        file_caps: Default::default(),
+        collect: Vec::new(),
     };
     let runner = runner(&args.common)?;
     let (tx, rx) = mpsc::unbounded_channel();

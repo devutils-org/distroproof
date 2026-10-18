@@ -130,6 +130,8 @@ mod tests {
             include: Vec::new(),
             probe: true,
             hold: false,
+            file_caps: BTreeMap::new(),
+            collect: Vec::new(),
         }
     }
 
