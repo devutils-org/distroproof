@@ -27,7 +27,9 @@ seule) et l'orchestrateur `distroproof` (VM, matrice, rapport, TUI).
 | 5 | Rapport de matrice, corrélation des échecs, JUnit / Markdown | ✅ |
 | 6 | TUI de monitoring | ✅ |
 
-Détail et critères de sortie : [docs/ROADMAP.md](docs/ROADMAP.md).
+Détail et critères de sortie : [docs/ROADMAP.md](docs/ROADMAP.md). Démo de bout en bout
+sur de vraies VM : [`scripts/demo.sh`](scripts/demo.sh) et
+[docs/how-to-use/demo.md](docs/how-to-use/demo.md).
 
 ## Crates
 
@@ -232,6 +234,7 @@ après la commande avec un shell root sur la console.
 | `espace`, `r`, `x` | pause / reprise (QMP), relance, kill |
 | `c`, `i`, `Ctrl+]` | ouvrir la console, saisir, sortir |
 | `/`, `n`, `N` | recherche dans les logs |
+| `p` | épingler le panneau sur la cible sélectionnée |
 | `d`, `D` | diff du rapport contre une autre cible |
 | `D L R C` | vue dashboard, logs, rapport, console du panneau |
 | `Ctrl+W` `s` `v` `q` `hjkl` `<>+-` | tiling : découper, fermer, focus, taille |

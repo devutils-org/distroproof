@@ -62,7 +62,7 @@ pub struct Target {
     pub mem: VecDeque<u64>,
     pub metrics: Metrics,
     pub logs: Vec<LogLine>,
-    console_partial: String,
+    console_partial: Vec<u8>,
     pub term: vt100::Parser,
     pub result: Option<TargetResult>,
     pub runs: u32,
@@ -89,7 +89,7 @@ impl Target {
             mem: VecDeque::with_capacity(HISTORY),
             metrics: Metrics::default(),
             logs: Vec::new(),
-            console_partial: String::new(),
+            console_partial: Vec::new(),
             term: vt100::Parser::new(24, 80, 2000),
             result: None,
             runs: 0,
@@ -120,14 +120,8 @@ impl Target {
 
     fn console(&mut self, bytes: &[u8]) {
         self.term.process(bytes);
-        let text = strip_ansi(&String::from_utf8_lossy(bytes));
-        self.console_partial.push_str(&text);
-        while let Some(i) = self.console_partial.find('\n') {
-            let line: String = self.console_partial.drain(..=i).collect();
-            let line = line.trim_end_matches(['\n', '\r']).to_string();
-            if !line.trim().is_empty() {
-                self.log(LogKind::Console, line);
-            }
+        for line in complete_lines(&mut self.console_partial, bytes) {
+            self.log(LogKind::Console, line);
         }
     }
 
@@ -537,5 +531,39 @@ impl App {
                 self.selected = first;
             }
         }
+    }
+}
+
+/// Ajoute `bytes` au tampon et renvoie les lignes complètes, nettoyées. Le
+/// décodage attend la fin de ligne : un caractère UTF-8 ou une séquence
+/// d'échappement coupés entre deux lectures du port série restent intacts.
+fn complete_lines(partial: &mut Vec<u8>, bytes: &[u8]) -> Vec<String> {
+    partial.extend_from_slice(bytes);
+    let mut lines = Vec::new();
+    while let Some(i) = partial.iter().position(|&b| b == b'\n') {
+        let raw: Vec<u8> = partial.drain(..=i).collect();
+        let line = strip_ansi(&String::from_utf8_lossy(&raw));
+        let line = line.trim_end_matches(['\n', '\r']);
+        if !line.trim().is_empty() {
+            lines.push(line.to_string());
+        }
+    }
+    lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::complete_lines;
+
+    #[test]
+    fn console_lines_survive_split_reads() {
+        let mut partial = Vec::new();
+        let text = "\x1b[0;32m OK \x1b[0m ttyS0…ice\r\ncommande terminée\n\nsuite";
+        let mut lines = Vec::new();
+        for b in text.as_bytes() {
+            lines.extend(complete_lines(&mut partial, std::slice::from_ref(b)));
+        }
+        assert_eq!(lines, [" OK  ttyS0…ice", "commande terminée"]);
+        assert_eq!(partial, b"suite");
     }
 }
