@@ -422,22 +422,32 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
             })
         }
         Source::FedoraLatest => {
-            let base = "https://download.fedoraproject.org/pub/fedora/linux/releases/";
+            // Le miroir principal plutôt que le redirecteur
+            // download.fedoraproject.org : un miroir pas encore synchronisé
+            // liste la nouvelle release sans ses images.
+            let base = "https://dl.fedoraproject.org/pub/fedora/linux/releases/";
             let html = fetch_text(base).await?;
             let mut releases: Vec<u32> = hrefs(&html)
                 .filter_map(|h| h.strip_suffix('/')?.parse().ok())
                 .collect();
             releases.sort_unstable_by(|a, b| b.cmp(a));
+            let mut last = "aucune release listée".to_string();
             for release in releases.into_iter().take(3) {
                 let index = format!("{base}{release}/Cloud/x86_64/images/");
-                let Ok(html) = fetch_text(&index).await else {
-                    continue;
+                let html = match fetch_text(&index).await {
+                    Ok(html) => html,
+                    Err(e) => {
+                        last = e;
+                        continue;
+                    }
                 };
                 let Some(file) = latest_listed(&html, "Fedora-Cloud-Base-Generic-", ".qcow2")
                 else {
+                    last = format!("pas d'image Cloud Generic dans {index}");
                     continue;
                 };
                 let Some(sums_file) = hrefs(&html).find(|h| h.ends_with("-CHECKSUM")) else {
+                    last = format!("pas de fichier CHECKSUM dans {index}");
                     continue;
                 };
                 let sums = fetch_text(&format!("{index}{sums_file}")).await?;
@@ -449,7 +459,9 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
                     checksum,
                 });
             }
-            Err("aucune release Fedora avec une image Cloud Generic".into())
+            Err(format!(
+                "aucune release Fedora avec une image Cloud Generic ({last})"
+            ))
         }
     }
 }
