@@ -35,8 +35,12 @@ enum Source {
         suffix: &'static str,
         checksum_suffix: &'static str,
     },
-    /// Latest Fedora release that publishes a Cloud Generic image.
-    FedoraLatest,
+    /// A Fedora release that publishes a Cloud Generic image: the latest
+    /// when `skip` is 0, the one before it when 1.
+    Fedora { skip: usize },
+    /// Gentoo's latest cloud-init disk image, named by the autobuilds'
+    /// `latest-<build>.txt`, with its `.sha256` beside it.
+    GentooLatest { build: &'static str },
 }
 
 pub struct ImageDef {
@@ -84,6 +88,16 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS",
         },
         // The image's BIOS grub reboots the machine as soon as the kernel loads.
+        uefi: true,
+    },
+    ImageDef {
+        name: "debian-sid",
+        description: "Debian unstable (sid), daily image: the next kernel Debian ships",
+        source: Source::Direct {
+            url: "https://cloud.debian.org/images/cloud/sid/daily/latest/debian-sid-generic-amd64-daily.qcow2",
+            checksums: "https://cloud.debian.org/images/cloud/sid/daily/latest/SHA512SUMS",
+        },
+        // As Debian 13's: the BIOS grub reboots as soon as the kernel loads.
         uefi: true,
     },
     ImageDef {
@@ -143,7 +157,13 @@ pub const CATALOG: &[ImageDef] = &[
     ImageDef {
         name: "fedora-latest",
         description: "Latest Fedora Cloud Base Generic",
-        source: Source::FedoraLatest,
+        source: Source::Fedora { skip: 0 },
+        uefi: false,
+    },
+    ImageDef {
+        name: "fedora-previous",
+        description: "The Fedora release before the latest, Cloud Base Generic",
+        source: Source::Fedora { skip: 1 },
         uefi: false,
     },
     ImageDef {
@@ -154,6 +174,16 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2.SHA256",
         },
         uefi: false,
+    },
+    ImageDef {
+        name: "gentoo",
+        description: "Gentoo, the autobuilds' latest cloud-init disk image (OpenRC, dist-kernel)",
+        source: Source::GentooLatest {
+            build: "di-amd64-cloudinit",
+        },
+        // A GPT disk with an EFI system partition and no BIOS boot code:
+        // under SeaBIOS the machine read its first sector and spun there.
+        uefi: true,
     },
     ImageDef {
         name: "alpine",
@@ -415,7 +445,23 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
                 checksum,
             })
         }
-        Source::FedoraLatest => {
+        Source::GentooLatest { build } => {
+            let base = "https://distfiles.gentoo.org/releases/amd64/autobuilds/";
+            let latest = fetch_text(&format!("{base}latest-{build}.txt")).await?;
+            let path = gentoo_latest_path(&latest)
+                .ok_or_else(|| format!("no .qcow2 named in {base}latest-{build}.txt"))?;
+            let url = format!("{base}{path}");
+            let file = path.rsplit('/').next().unwrap_or(&path).to_string();
+            let sums = fetch_text(&format!("{url}.sha256")).await?;
+            let checksum = find_checksum(&sums, &file)
+                .ok_or_else(|| format!("checksum of {file} missing from {url}.sha256"))?;
+            Ok(Resolved {
+                url,
+                file,
+                checksum,
+            })
+        }
+        Source::Fedora { skip } => {
             // The primary mirror rather than the download.fedoraproject.org
             // redirector: a mirror that is not yet in sync lists the new
             // release without its images.
@@ -426,7 +472,8 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
                 .collect();
             releases.sort_unstable_by(|a, b| b.cmp(a));
             let mut last = "no release listed".to_string();
-            for release in releases.into_iter().take(3) {
+            let mut skipped = 0;
+            for release in releases.into_iter().take(3 + skip) {
                 let index = format!("{base}{release}/Cloud/x86_64/images/");
                 let html = match fetch_text(&index).await {
                     Ok(html) => html,
@@ -444,6 +491,12 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
                     last = format!("no CHECKSUM file in {index}");
                     continue;
                 };
+                // A release counts once it publishes an image: `skip` passes
+                // over the newest such releases, not over directories.
+                if skipped < *skip {
+                    skipped += 1;
+                    continue;
+                }
                 let sums = fetch_text(&format!("{index}{sums_file}")).await?;
                 let checksum = find_checksum(&sums, &file)
                     .ok_or_else(|| format!("checksum of {file} missing from {sums_file}"))?;
@@ -458,6 +511,18 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
             ))
         }
     }
+}
+
+/// The image a Gentoo autobuilds `latest-<build>.txt` names: one
+/// `<directory>/<file> <size>` line, inside a PGP-signed text.
+fn gentoo_latest_path(latest: &str) -> Option<String> {
+    latest
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.starts_with('#'))
+        .filter_map(|line| line.split_whitespace().next())
+        .find(|path| path.ends_with(".qcow2"))
+        .map(str::to_string)
 }
 
 /// `href="…"` links of an HTML index.
@@ -718,6 +783,26 @@ mod tests {
         let alone = "8d756f6fc7653daa4fb4e2e213d8a66007bcb1e5a846e28891af62c47b90685c694486c2746099ad99e9e8f5278db76b69d11dfe1e9361aa4c8406df16929a9c\n";
         assert!(find_checksum(alone, "whatever.qcow2").is_some());
         assert!(find_checksum("nothing here", "x").is_none());
+    }
+
+    #[test]
+    fn gentoo_latest_names_the_image_inside_the_signature() {
+        let latest = "-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+# Latest as of Sun, 18 Oct 2026 21:00:01 +0000
+# ts=1792357201
+20261011T170049Z/di-amd64-cloudinit-20261011T170049Z.qcow2 1216151552
+-----BEGIN PGP SIGNATURE-----
+
+iQFPBAEBCAA5FiEEU05CCatJ7uHBnZYWLERpXbn2BD0FAmrVM5EbFIAAAAAABAAO
+-----END PGP SIGNATURE-----
+";
+        assert_eq!(
+            gentoo_latest_path(latest).as_deref(),
+            Some("20261011T170049Z/di-amd64-cloudinit-20261011T170049Z.qcow2")
+        );
+        assert_eq!(gentoo_latest_path("no image here"), None);
     }
 
     #[test]

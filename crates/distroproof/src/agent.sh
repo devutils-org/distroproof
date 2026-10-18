@@ -132,7 +132,9 @@ if [ "$DP_EXTRACT_KERNEL" = 1 ]; then
     say STAGE kernel
     r=$(uname -r)
     k=""
-    for f in /boot/vmlinuz-$r /lib/modules/$r/vmlinuz /usr/lib/modules/$r/vmlinuz \
+    # /boot/kernel-$r is Gentoo's installkernel; its modules/$r/vmlinuz is a
+    # link into a kernel source tree the image does not ship.
+    for f in /boot/vmlinuz-$r /boot/kernel-$r /lib/modules/$r/vmlinuz /usr/lib/modules/$r/vmlinuz \
         /boot/vmlinuz-virt /boot/vmlinuz-lts /boot/vmlinuz-linux /boot/vmlinuz; do
         [ -f "$f" ] && { k=$f; break; }
     done

@@ -132,8 +132,10 @@ that only boot with UEFI. Binaries can be chosen with `DISTROPROOF_QEMU`,
 | `debian-10`, `debian-11`, `debian-12`, `debian-13` | 4.19, 5.10, 6.1, 6.12 | 4.19 without BTF; 13 boots with UEFI |
 | `ubuntu-18.04`, `ubuntu-20.04`, `ubuntu-22.04`, `ubuntu-24.04` | 4.15, 5.4, 5.15, 6.8 | 4.15 without BTF |
 | `rocky-8`, `rocky-9` | 4.18, 5.14 | RHEL kernels with backports; 9 boots with UEFI |
-| `fedora-latest` | 6.19 (Fedora 44) | latest release, resolved online |
+| `debian-sid` | 7.2 (October 2026) | unstable, daily image: the next kernel Debian ships; `perf_event_paranoid` 3; boots with UEFI |
+| `fedora-latest`, `fedora-previous` | 6.19 (Fedora 44), 6.17 (Fedora 43) | the latest release and the one before it, resolved online |
 | `arch` | rolling | |
+| `gentoo` | 6.18 dist-kernel | the autobuilds' latest cloud-init image, OpenRC; boots with UEFI |
 | `alpine` | 6.18 `virt` | musl, busybox |
 
 Images are downloaded once, verified against the checksum published by the
