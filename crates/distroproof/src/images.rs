@@ -1,9 +1,9 @@
-//! Catalogue des images cloud officielles et cache local.
+//! Catalog of official cloud images, and local cache.
 //!
-//! Les images cloud (qcow2) contiennent le noyau, l'initramfs et la config
-//! d'origine de la distro : c'est ce noyau qui tourne dans la VM. Elles sont
-//! téléchargées avec `curl`, vérifiées contre le checksum publié par la distro
-//! puis gardées dans `$XDG_CACHE_HOME/distroproof/images/<image>/`.
+//! Cloud images (qcow2) contain the distro's original kernel, initramfs and
+//! config: that kernel is what runs in the VM. They are downloaded with
+//! `curl`, verified against the checksum published by the distro, then kept
+//! in `$XDG_CACHE_HOME/distroproof/images/<image>/`.
 
 use std::collections::HashMap;
 use std::fs;
@@ -20,22 +20,22 @@ use tokio::sync::Mutex;
 use crate::dirs;
 use crate::event::{Emitter, VmEvent};
 
-/// Où trouver la dernière version d'une image.
+/// Where to find the latest version of an image.
 enum Source {
-    /// URL fixe et fichier de checksums publié à côté.
+    /// Fixed URL and the checksums file published next to it.
     Direct {
         url: &'static str,
         checksums: &'static str,
     },
-    /// Index HTML : le fichier le plus récent qui commence par `prefix` et
-    /// finit par `suffix`. Le checksum est dans `<fichier><checksum_suffix>`.
+    /// HTML index: the most recent file that starts with `prefix` and ends
+    /// with `suffix`. The checksum is in `<file><checksum_suffix>`.
     Listing {
         index: &'static str,
         prefix: &'static str,
         suffix: &'static str,
         checksum_suffix: &'static str,
     },
-    /// Dernière release Fedora qui publie une image Cloud Generic.
+    /// Latest Fedora release that publishes a Cloud Generic image.
     FedoraLatest,
 }
 
@@ -43,15 +43,15 @@ pub struct ImageDef {
     pub name: &'static str,
     pub description: &'static str,
     source: Source,
-    /// Le boot sur le disque exige UEFI : le grub BIOS de l'image redémarre
-    /// la machine aussitôt (Rocky 9, Debian 13). Le boot direct s'en passe.
+    /// Booting from disk requires UEFI: the image's BIOS grub reboots the
+    /// machine right away (Rocky 9, Debian 13). Direct boot does without it.
     pub uefi: bool,
 }
 
 pub const CATALOG: &[ImageDef] = &[
     ImageDef {
         name: "debian-10",
-        description: "Debian 10 buster (archive), noyau 4.19 sans BTF",
+        description: "Debian 10 buster (archive), kernel 4.19 without BTF",
         source: Source::Direct {
             url: "https://cloud.debian.org/images/cloud/buster/latest/debian-10-generic-amd64.qcow2",
             checksums: "https://cloud.debian.org/images/cloud/buster/latest/SHA512SUMS",
@@ -60,7 +60,7 @@ pub const CATALOG: &[ImageDef] = &[
     },
     ImageDef {
         name: "debian-11",
-        description: "Debian 11 bullseye, noyau 5.10",
+        description: "Debian 11 bullseye, kernel 5.10",
         source: Source::Direct {
             url: "https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2",
             checksums: "https://cloud.debian.org/images/cloud/bullseye/latest/SHA512SUMS",
@@ -69,7 +69,7 @@ pub const CATALOG: &[ImageDef] = &[
     },
     ImageDef {
         name: "debian-12",
-        description: "Debian 12 bookworm, noyau generic",
+        description: "Debian 12 bookworm, generic kernel",
         source: Source::Direct {
             url: "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2",
             checksums: "https://cloud.debian.org/images/cloud/bookworm/latest/SHA512SUMS",
@@ -78,17 +78,17 @@ pub const CATALOG: &[ImageDef] = &[
     },
     ImageDef {
         name: "debian-13",
-        description: "Debian 13 trixie, noyau generic",
+        description: "Debian 13 trixie, generic kernel",
         source: Source::Direct {
             url: "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2",
             checksums: "https://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS",
         },
-        // Le grub BIOS de l'image redémarre la machine dès le chargement du noyau.
+        // The image's BIOS grub reboots the machine as soon as the kernel loads.
         uefi: true,
     },
     ImageDef {
         name: "ubuntu-18.04",
-        description: "Ubuntu 18.04 bionic, noyau 4.15 sans BTF",
+        description: "Ubuntu 18.04 bionic, kernel 4.15 without BTF",
         source: Source::Direct {
             url: "https://cloud-images.ubuntu.com/releases/18.04/release/ubuntu-18.04-server-cloudimg-amd64.img",
             checksums: "https://cloud-images.ubuntu.com/releases/18.04/release/SHA256SUMS",
@@ -97,7 +97,7 @@ pub const CATALOG: &[ImageDef] = &[
     },
     ImageDef {
         name: "ubuntu-20.04",
-        description: "Ubuntu 20.04 focal, noyau 5.4",
+        description: "Ubuntu 20.04 focal, kernel 5.4",
         source: Source::Direct {
             url: "https://cloud-images.ubuntu.com/releases/20.04/release/ubuntu-20.04-server-cloudimg-amd64.img",
             checksums: "https://cloud-images.ubuntu.com/releases/20.04/release/SHA256SUMS",
@@ -124,7 +124,7 @@ pub const CATALOG: &[ImageDef] = &[
     },
     ImageDef {
         name: "rocky-9",
-        description: "Rocky Linux 9 (RHEL 9, noyau 5.14)",
+        description: "Rocky Linux 9 (RHEL 9, kernel 5.14)",
         source: Source::Direct {
             url: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2",
             checksums: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2.CHECKSUM",
@@ -133,7 +133,7 @@ pub const CATALOG: &[ImageDef] = &[
     },
     ImageDef {
         name: "rocky-8",
-        description: "Rocky Linux 8 (RHEL 8, noyau 4.18)",
+        description: "Rocky Linux 8 (RHEL 8, kernel 4.18)",
         source: Source::Direct {
             url: "https://dl.rockylinux.org/pub/rocky/8/images/x86_64/Rocky-8-GenericCloud-Base.latest.x86_64.qcow2",
             checksums: "https://dl.rockylinux.org/pub/rocky/8/images/x86_64/Rocky-8-GenericCloud-Base.latest.x86_64.qcow2.CHECKSUM",
@@ -142,13 +142,13 @@ pub const CATALOG: &[ImageDef] = &[
     },
     ImageDef {
         name: "fedora-latest",
-        description: "Dernière Fedora Cloud Base Generic",
+        description: "Latest Fedora Cloud Base Generic",
         source: Source::FedoraLatest,
         uefi: false,
     },
     ImageDef {
         name: "arch",
-        description: "Arch Linux, image cloud officielle",
+        description: "Arch Linux, official cloud image",
         source: Source::Direct {
             url: "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2",
             checksums: "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2.SHA256",
@@ -157,7 +157,7 @@ pub const CATALOG: &[ImageDef] = &[
     },
     ImageDef {
         name: "alpine",
-        description: "Alpine stable, image generic BIOS avec cloud-init",
+        description: "Alpine stable, generic BIOS image with cloud-init",
         source: Source::Listing {
             index: "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/cloud/",
             prefix: "generic_alpine-",
@@ -176,16 +176,16 @@ pub fn names() -> Vec<&'static str> {
     CATALOG.iter().map(|d| d.name).collect()
 }
 
-/// Version précise d'une image, telle que résolue en ligne.
+/// Exact version of an image, as resolved online.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct Resolved {
     url: String,
     file: String,
-    /// Checksum hexadécimal publié (sha256 ou sha512 selon la longueur).
+    /// Published hex checksum (sha256 or sha512 depending on its length).
     checksum: String,
 }
 
-/// Image prête à l'emploi.
+/// Image ready to use.
 #[derive(Debug, Clone)]
 pub struct Image {
     pub name: String,
@@ -195,7 +195,7 @@ pub struct Image {
 }
 
 impl Image {
-    /// Noyau et initramfs extraits de l'image pour le boot direct.
+    /// Kernel and initramfs extracted from the image for direct boot.
     pub fn kernel_dir(&self) -> PathBuf {
         self.path.with_extension("kernel")
     }
@@ -205,12 +205,12 @@ impl Image {
     }
 }
 
-/// Noyau extrait par l'agent lors d'un premier boot depuis le disque.
+/// Kernel extracted by the agent during a first boot from disk.
 #[derive(Debug, Clone)]
 pub struct DirectKernel {
     pub kernel: PathBuf,
     pub initrd: Option<PathBuf>,
-    /// Ligne de commande d'origine, sans `BOOT_IMAGE` ni `console=`.
+    /// Original command line, without `BOOT_IMAGE` or `console=`.
     pub cmdline: String,
 }
 
@@ -230,7 +230,7 @@ impl DirectKernel {
     }
 }
 
-/// Retire de la ligne de commande d'origine ce que distroproof fixe lui-même.
+/// Removes from the original command line what distroproof sets itself.
 pub fn clean_cmdline(cmdline: &str) -> String {
     cmdline
         .split_whitespace()
@@ -248,8 +248,8 @@ pub fn clean_cmdline(cmdline: &str) -> String {
         .join(" ")
 }
 
-/// Cache partagé par toutes les cibles : une image n'est téléchargée qu'une
-/// fois même si plusieurs cibles l'utilisent en parallèle.
+/// Cache shared by every target: an image is downloaded only once, even when
+/// several targets use it in parallel.
 #[derive(Clone, Default)]
 pub struct Store {
     locks: Arc<StdMutex<HashMap<String, Arc<Mutex<()>>>>>,
@@ -265,36 +265,32 @@ impl Store {
     }
 
     fn lock(&self, name: &str) -> Arc<Mutex<()>> {
-        let mut locks = self.locks.lock().expect("verrou du cache");
+        let mut locks = self.locks.lock().expect("cache lock");
         locks.entry(name.to_string()).or_default().clone()
     }
 
-    /// Verrou exclusif sur une image, pour préparer son noyau sans course.
+    /// Exclusive lock on an image, to prepare its kernel without races.
     pub async fn exclusive(&self, name: &str) -> tokio::sync::OwnedMutexGuard<()> {
         self.lock(name).lock_owned().await
     }
 
-    /// Image locale vérifiée, téléchargée si besoin.
+    /// Verified local image, downloaded if needed.
     pub async fn ensure(&self, name: &str, ev: &Emitter) -> Result<Image, String> {
-        let def = find(name).ok_or_else(|| {
-            format!(
-                "image inconnue « {name} » (connues : {})",
-                names().join(", ")
-            )
-        })?;
+        let def = find(name)
+            .ok_or_else(|| format!("unknown image \"{name}\" (known: {})", names().join(", ")))?;
         let lock = self.lock(name);
         let _guard = lock.lock().await;
         let dir = dirs::images().join(name);
-        fs::create_dir_all(&dir).map_err(|e| format!("{} : {e}", dir.display()))?;
-        // Verrou entre processus : deux distroproof ne téléchargent pas la
-        // même image en même temps.
+        fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        // Inter-process lock: two distroproof instances never download the
+        // same image at the same time.
         let lock_file = fs::File::create(dir.join(".lock")).map_err(|e| e.to_string())?;
         let _flock = tokio::task::spawn_blocking(move || {
             crate::sys::lock_exclusive(&lock_file).map(|()| lock_file)
         })
         .await
         .map_err(|e| e.to_string())?
-        .map_err(|e| format!("verrou du cache : {e}"))?;
+        .map_err(|e| format!("cache lock: {e}"))?;
         let current_path = dir.join("current.json");
         let current: Option<Resolved> = fs::read_to_string(&current_path)
             .ok()
@@ -303,18 +299,16 @@ impl Store {
         let resolved = if self.offline {
             current
                 .clone()
-                .ok_or_else(|| format!("{name} : absente du cache (mode hors ligne)"))?
+                .ok_or_else(|| format!("{name}: not in the cache (offline mode)"))?
         } else {
             match resolve(def).await {
                 Ok(r) => r,
                 Err(err) => match &current {
                     Some(c) if dir.join(&c.file).is_file() => {
-                        ev.info(format!(
-                            "résolution impossible ({err}), image du cache utilisée"
-                        ));
+                        ev.info(format!("cannot resolve ({err}), using the cached image"));
                         c.clone()
                     }
-                    _ => return Err(format!("{name} : {err}")),
+                    _ => return Err(format!("{name}: {err}")),
                 },
             }
         };
@@ -332,21 +326,21 @@ impl Store {
             let actual = tokio::task::spawn_blocking(move || hash_file(&part2, expected.len()))
                 .await
                 .map_err(|e| e.to_string())?
-                .map_err(|e| format!("lecture de {} : {e}", part.display()))?;
+                .map_err(|e| format!("reading {}: {e}", part.display()))?;
             if actual != resolved.checksum {
                 let _ = fs::remove_file(&part);
                 return Err(format!(
-                    "{} : checksum invalide (attendu {}, obtenu {actual})",
+                    "{}: checksum mismatch (expected {}, got {actual})",
                     resolved.file, resolved.checksum
                 ));
             }
             fs::rename(&part, &path).map_err(|e| e.to_string())?;
-            // Le noyau extrait d'une version précédente n'est plus valable.
+            // A kernel extracted from a previous version is no longer valid.
             let _ = fs::remove_dir_all(path.with_extension("kernel"));
             fs::write(&verified, &resolved.checksum).map_err(|e| e.to_string())?;
         }
         if current.as_ref() != Some(&resolved) {
-            let json = serde_json::to_string_pretty(&resolved).expect("sérialisable");
+            let json = serde_json::to_string_pretty(&resolved).expect("serializable");
             fs::write(&current_path, json).map_err(|e| e.to_string())?;
         }
         remove_stale(&dir, &resolved.file);
@@ -363,7 +357,7 @@ impl Store {
     }
 }
 
-/// Supprime les anciennes versions d'une image pour garder le cache propre.
+/// Removes old versions of an image to keep the cache clean.
 fn remove_stale(dir: &Path, keep: &str) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
@@ -395,7 +389,7 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
             let file = url.rsplit('/').next().unwrap_or(url).to_string();
             let sums = fetch_text(checksums).await?;
             let checksum = find_checksum(&sums, &file)
-                .ok_or_else(|| format!("checksum de {file} absent de {checksums}"))?;
+                .ok_or_else(|| format!("checksum of {file} missing from {checksums}"))?;
             Ok(Resolved {
                 url: url.to_string(),
                 file,
@@ -410,11 +404,11 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
         } => {
             let html = fetch_text(index).await?;
             let file = latest_listed(&html, prefix, suffix)
-                .ok_or_else(|| format!("aucun fichier {prefix}*{suffix} dans {index}"))?;
+                .ok_or_else(|| format!("no {prefix}*{suffix} file in {index}"))?;
             let url = format!("{index}{file}");
             let sums = fetch_text(&format!("{url}{checksum_suffix}")).await?;
             let checksum = find_checksum(&sums, &file)
-                .ok_or_else(|| format!("checksum de {file} introuvable"))?;
+                .ok_or_else(|| format!("checksum of {file} not found"))?;
             Ok(Resolved {
                 url,
                 file,
@@ -422,16 +416,16 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
             })
         }
         Source::FedoraLatest => {
-            // Le miroir principal plutôt que le redirecteur
-            // download.fedoraproject.org : un miroir pas encore synchronisé
-            // liste la nouvelle release sans ses images.
+            // The primary mirror rather than the download.fedoraproject.org
+            // redirector: a mirror that is not yet in sync lists the new
+            // release without its images.
             let base = "https://dl.fedoraproject.org/pub/fedora/linux/releases/";
             let html = fetch_text(base).await?;
             let mut releases: Vec<u32> = hrefs(&html)
                 .filter_map(|h| h.strip_suffix('/')?.parse().ok())
                 .collect();
             releases.sort_unstable_by(|a, b| b.cmp(a));
-            let mut last = "aucune release listée".to_string();
+            let mut last = "no release listed".to_string();
             for release in releases.into_iter().take(3) {
                 let index = format!("{base}{release}/Cloud/x86_64/images/");
                 let html = match fetch_text(&index).await {
@@ -443,16 +437,16 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
                 };
                 let Some(file) = latest_listed(&html, "Fedora-Cloud-Base-Generic-", ".qcow2")
                 else {
-                    last = format!("pas d'image Cloud Generic dans {index}");
+                    last = format!("no Cloud Generic image in {index}");
                     continue;
                 };
                 let Some(sums_file) = hrefs(&html).find(|h| h.ends_with("-CHECKSUM")) else {
-                    last = format!("pas de fichier CHECKSUM dans {index}");
+                    last = format!("no CHECKSUM file in {index}");
                     continue;
                 };
                 let sums = fetch_text(&format!("{index}{sums_file}")).await?;
                 let checksum = find_checksum(&sums, &file)
-                    .ok_or_else(|| format!("checksum de {file} absent de {sums_file}"))?;
+                    .ok_or_else(|| format!("checksum of {file} missing from {sums_file}"))?;
                 return Ok(Resolved {
                     url: format!("{index}{file}"),
                     file,
@@ -460,20 +454,20 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
                 });
             }
             Err(format!(
-                "aucune release Fedora avec une image Cloud Generic ({last})"
+                "no Fedora release with a Cloud Generic image ({last})"
             ))
         }
     }
 }
 
-/// Liens `href="…"` d'un index HTML.
+/// `href="…"` links of an HTML index.
 fn hrefs(html: &str) -> impl Iterator<Item = &str> {
     html.split("href=\"")
         .skip(1)
         .filter_map(|rest| rest.split('"').next())
 }
 
-/// Fichier listé le plus récent selon un tri de versions naturel.
+/// Most recent listed file, by natural version sort.
 fn latest_listed(html: &str, prefix: &str, suffix: &str) -> Option<String> {
     let mut files: Vec<&str> = hrefs(html)
         .map(|h| h.rsplit('/').next().unwrap_or(h))
@@ -484,7 +478,7 @@ fn latest_listed(html: &str, prefix: &str, suffix: &str) -> Option<String> {
     files.last().map(|s| s.to_string())
 }
 
-/// Compare en traitant les suites de chiffres comme des nombres (3.9 < 3.10).
+/// Compares treating digit runs as numbers (3.9 < 3.10).
 fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     fn chunks(s: &str) -> Vec<Result<u64, String>> {
         let mut out = Vec::new();
@@ -514,9 +508,9 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     chunks(a).cmp(&chunks(b))
 }
 
-/// Cherche le checksum de `file` dans un fichier de sommes, quel qu'en soit
-/// le format : GNU (`hash  fichier`, `hash *fichier`), BSD
-/// (`SHA256 (fichier) = hash`) ou un hash seul.
+/// Finds the checksum of `file` in a sums file, whatever its format: GNU
+/// (`hash  file`, `hash *file`), BSD (`SHA256 (file) = hash`) or a bare
+/// hash.
 pub fn find_checksum(sums: &str, file: &str) -> Option<String> {
     let is_hash =
         |w: &str| (w.len() == 64 || w.len() == 128) && w.chars().all(|c| c.is_ascii_hexdigit());
@@ -575,10 +569,10 @@ async fn fetch_text(url: &str) -> Result<String, String> {
         .kill_on_drop(true)
         .output()
         .await
-        .map_err(|e| format!("curl introuvable : {e}"))?;
+        .map_err(|e| format!("curl not found: {e}"))?;
     if !out.status.success() {
         return Err(format!(
-            "{url} : {}",
+            "{url}: {}",
             String::from_utf8_lossy(&out.stderr).trim()
         ));
     }
@@ -602,7 +596,7 @@ async fn content_length(url: &str) -> Option<u64> {
         })
 }
 
-/// Télécharge dans `<fichier>.part`, avec reprise si un fichier partiel existe.
+/// Downloads to `<file>.part`, resuming if a partial file exists.
 async fn download(resolved: &Resolved, path: &Path, ev: &Emitter) -> Result<(), String> {
     let part = path.with_extension("part");
     let total = content_length(&resolved.url).await;
@@ -623,7 +617,7 @@ async fn download(resolved: &Resolved, path: &Path, ev: &Emitter) -> Result<(), 
         .kill_on_drop(true)
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .map_err(|e| format!("curl introuvable : {e}"))?;
+        .map_err(|e| format!("curl not found: {e}"))?;
     let mut tick = tokio::time::interval(Duration::from_millis(500));
     let status = loop {
         tokio::select! {
@@ -640,15 +634,11 @@ async fn download(resolved: &Resolved, path: &Path, ev: &Emitter) -> Result<(), 
             use tokio::io::AsyncReadExt;
             let _ = stderr.read_to_string(&mut err).await;
         }
-        // Code 33 : le serveur refuse la reprise, on repart de zéro au prochain essai.
+        // Code 33: the server refuses to resume, start from scratch on the next try.
         if status.code() == Some(33) {
             let _ = fs::remove_file(&part);
         }
-        return Err(format!(
-            "téléchargement de {} : {}",
-            resolved.url,
-            err.trim()
-        ));
+        return Err(format!("downloading {}: {}", resolved.url, err.trim()));
     }
     if let Some(total) = total {
         ev.emit(VmEvent::Downloading {
@@ -659,7 +649,7 @@ async fn download(resolved: &Resolved, path: &Path, ev: &Emitter) -> Result<(), 
     Ok(())
 }
 
-/// État du cache, pour `distroproof images`.
+/// Cache status, for `distroproof images`.
 pub struct CacheEntry {
     pub name: &'static str,
     pub description: &'static str,

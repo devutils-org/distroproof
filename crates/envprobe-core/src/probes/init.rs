@@ -30,10 +30,10 @@ fn classify(comm: &str) -> Value {
         "runit" | "runit-init" => "runit",
         "s6-svscan" => "s6",
         "dinit" => "dinit",
-        "tini" | "docker-init" => "tini (conteneur)",
-        "dumb-init" => "dumb-init (conteneur)",
-        "init" => "init (sysvinit, busybox ou openrc)",
-        _ => return Value::ok(format!("autre ({comm})")),
+        "tini" | "docker-init" => "tini (container)",
+        "dumb-init" => "dumb-init (container)",
+        "init" => "init (sysvinit, busybox or openrc)",
+        _ => return Value::ok(format!("other ({comm})")),
     };
     Value::ok(kind)
 }

@@ -1,4 +1,4 @@
-//! Cible de /bin/sh et implémentation des outils de base.
+//! Target of /bin/sh and implementation of the base tools.
 
 use std::fs;
 use std::path::Path;
@@ -46,7 +46,7 @@ fn coreutils() -> Value {
     } else if contains_bytes(&data, b"BusyBox") {
         "busybox"
     } else {
-        "inconnu"
+        "unknown"
     };
     Value::ok(format!("{kind} ({})", real.display()))
 }

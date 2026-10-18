@@ -1,4 +1,4 @@
-//! tracefs, debugfs, lisibilité de kallsyms.
+//! tracefs, debugfs, kallsyms readability.
 
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -25,7 +25,7 @@ pub fn probe() -> Section {
                     .map(|m| m.target.as_str())
                     .collect();
                 let value = if targets.is_empty() {
-                    Value::ok("non monté")
+                    Value::ok("not mounted")
                 } else {
                     Value::ok(targets.join(", "))
                 };
@@ -42,7 +42,7 @@ pub fn probe() -> Section {
         ("debug_tracing_dir", "/sys/kernel/debug/tracing"),
     ] {
         let value = match fs::read_dir(dir) {
-            Ok(_) => Value::ok("lisible"),
+            Ok(_) => Value::ok("readable"),
             Err(e) => util::io_value(&e, Path::new(dir)),
         };
         s.push_privileged(key, value);
@@ -63,10 +63,10 @@ fn kallsyms() -> Value {
     }
     let addr = line.split_whitespace().next().unwrap_or("");
     if addr.is_empty() {
-        Value::ok("vide")
+        Value::ok("empty")
     } else if addr.bytes().all(|b| b == b'0') {
-        Value::ok("lisible, adresses masquées (kptr_restrict)")
+        Value::ok("readable, addresses hidden (kptr_restrict)")
     } else {
-        Value::ok("lisible, adresses visibles")
+        Value::ok("readable, addresses visible")
     }
 }

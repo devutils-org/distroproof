@@ -1,9 +1,9 @@
 #!/bin/sh
-# Lance envprobe dans un rootfs de distro extrait (Alpine minirootfs, image
-# LXC…), isolé par des namespaces user, mount et pid : ni root ni Docker requis.
-# Le noyau reste celui de l'hôte, seul l'userspace change.
+# Runs envprobe in an extracted distro rootfs (Alpine minirootfs, LXC
+# image…), isolated by user, mount and pid namespaces: neither root nor Docker
+# needed. The kernel stays the host's; only the userspace changes.
 #
-#   scripts/probe-rootfs.sh <rootfs> <binaire envprobe statique> [args…]
+#   scripts/probe-rootfs.sh <rootfs> <static envprobe binary> [args…]
 set -eu
 
 rootfs=$(realpath "$1")

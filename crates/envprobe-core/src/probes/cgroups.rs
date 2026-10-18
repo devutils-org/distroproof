@@ -1,4 +1,4 @@
-//! Version des cgroups.
+//! cgroups version.
 
 use crate::probes::tracing::read_mounts;
 use crate::{util, Section, Value};
@@ -13,15 +13,15 @@ pub fn probe() -> Section {
             let v2_any = mounts.iter().any(|m| m.fstype == "cgroup2");
             let v1 = mounts.iter().any(|m| m.fstype == "cgroup");
             let mode = if v1 && v2_any {
-                Value::ok("hybride")
+                Value::ok("hybrid")
             } else if v2_root {
                 Value::ok("v2")
             } else if v2_any {
-                Value::ok("v2 (hors /sys/fs/cgroup)")
+                Value::ok("v2 (outside /sys/fs/cgroup)")
             } else if v1 {
                 Value::ok("v1")
             } else {
-                Value::unavailable("aucun cgroup monté")
+                Value::unavailable("no cgroup mounted")
             };
             s.push("mode", mode);
         }

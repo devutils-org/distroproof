@@ -1,4 +1,4 @@
-//! Panneaux en tiling : arbre binaire de découpes horizontales et verticales.
+//! Tiled panes: a binary tree of horizontal and vertical splits.
 
 use ratatui::layout::Rect;
 
@@ -6,9 +6,9 @@ use ratatui::layout::Rect;
 pub enum Node {
     Leaf(usize),
     Split {
-        /// Vrai : côte à côte (découpe verticale) ; faux : l'un sous l'autre.
+        /// True: side by side (vertical split); false: one above the other.
         side_by_side: bool,
-        /// Part du premier enfant, en pourcentage.
+        /// Share of the first child, as a percentage.
         ratio: u16,
         a: Box<Node>,
         b: Box<Node>,
@@ -33,7 +33,7 @@ impl Node {
         }
     }
 
-    /// Rectangle de chaque panneau.
+    /// Rectangle of each pane.
     pub fn layout(&self, area: Rect, out: &mut Vec<(usize, Rect)>) {
         match self {
             Node::Leaf(id) => out.push((*id, area)),
@@ -61,7 +61,7 @@ impl Node {
         }
     }
 
-    /// Remplace le panneau `target` par une découpe `target | new`.
+    /// Replaces pane `target` with a `target | new` split.
     pub fn split_leaf(&mut self, target: usize, new: usize, side_by_side: bool) -> bool {
         match self {
             Node::Leaf(id) if *id == target => {
@@ -75,7 +75,7 @@ impl Node {
         }
     }
 
-    /// Retire un panneau : son voisin prend sa place. Le dernier reste.
+    /// Removes a pane: its sibling takes its place. The last one stays.
     pub fn close(&mut self, target: usize) -> bool {
         let Node::Split { a, b, .. } = self else {
             return false;
@@ -91,8 +91,8 @@ impl Node {
         a.close(target) || b.close(target)
     }
 
-    /// Agrandit (delta > 0) ou réduit le panneau dans la découpe parente
-    /// la plus proche orientée dans le bon sens.
+    /// Grows (delta > 0) or shrinks the pane within the closest parent split
+    /// that has the right orientation.
     pub fn resize(&mut self, target: usize, delta: i16, side_by_side_wanted: bool) -> bool {
         match self {
             Node::Leaf(_) => false,
@@ -144,7 +144,7 @@ fn cut(area: Rect, side_by_side: bool, ratio: u16) -> (Rect, Rect) {
     }
 }
 
-/// Panneau voisin dans une direction, d'après la géométrie.
+/// Neighboring pane in a direction, based on geometry.
 pub fn neighbor(rects: &[(usize, Rect)], from: usize, dir: Dir) -> Option<usize> {
     let (_, cur) = rects.iter().find(|(id, _)| *id == from)?;
     let center = |r: &Rect| {

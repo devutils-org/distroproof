@@ -1,7 +1,7 @@
-name: Matrice
+name: Matrix
 
-# Dogfooding : distroproof lance envprobe dans des VM de chaque distro cible
-# (distroproof.toml) et publie un résumé Markdown sur la PR.
+# Dogfooding: distroproof runs envprobe in VMs of each target distro
+# (distroproof.toml) and posts a Markdown summary on the PR.
 
 on:
   pull_request:
@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Activer KVM
+      - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -29,7 +29,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           ls -l /dev/kvm
 
-      - name: Installer QEMU et OVMF
+      - name: Install QEMU and OVMF
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf
@@ -40,8 +40,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release --target x86_64-unknown-linux-musl
 
-      # Images cloud et noyaux extraits : renouvelés chaque semaine pour
-      # suivre les mises à jour des distros.
+      # Cloud images and extracted kernels: renewed every week to follow
+      # distro updates.
       - id: week
         run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
@@ -50,18 +50,18 @@ jobs:
           key: distroproof-images-${{ steps.week.outputs.week }}-${{ hashFiles('distroproof.toml') }}
           restore-keys: distroproof-images-
 
-      - name: Lancer la matrice
+      - name: Run the matrix
         run: |
           set +e
           target/x86_64-unknown-linux-musl/release/distroproof up --no-tui --jobs 3 \
             --json matrix.json --junit junit.xml --markdown summary.md
           echo "code=$?" >> "$GITHUB_ENV"
 
-      - name: Résumé
+      - name: Summary
         if: always()
         run: cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Commentaire de PR
+      - name: PR comment
         if: always() && github.event_name == 'pull_request'
         continue-on-error: true
         env:
@@ -79,5 +79,5 @@ jobs:
             junit.xml
             summary.md
 
-      - name: Code de sortie de la matrice
+      - name: Matrix exit code
         run: exit "$code"

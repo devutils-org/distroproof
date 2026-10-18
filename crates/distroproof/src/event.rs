@@ -1,8 +1,8 @@
-//! Bus d'événements de l'orchestrateur.
+//! The orchestrator's event bus.
 //!
-//! L'orchestrateur n'écrit jamais dans le terminal : il émet des [`Event`]
-//! dans un channel tokio. La sortie texte, la sortie JSON et la TUI ne sont
-//! que des consommateurs de ce flux.
+//! The orchestrator never writes to the terminal: it emits [`Event`]s on a
+//! tokio channel. The text output, the JSON output and the TUI are only
+//! consumers of this stream.
 
 use std::path::PathBuf;
 
@@ -14,7 +14,7 @@ use crate::model::TargetResult;
 pub type EventTx = mpsc::UnboundedSender<Event>;
 pub type EventRx = mpsc::UnboundedReceiver<Event>;
 
-/// Un événement concernant une cible de la matrice.
+/// An event about one target of the matrix.
 #[derive(Debug, Clone, Serialize)]
 pub struct Event {
     pub target: String,
@@ -22,7 +22,7 @@ pub struct Event {
     pub kind: VmEvent,
 }
 
-/// Flux de sortie d'une commande dans l'invité.
+/// Output stream of a command in the guest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Stream {
@@ -30,7 +30,7 @@ pub enum Stream {
     Stderr,
 }
 
-/// Étape exécutée par l'agent invité.
+/// Stage run by the guest agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Stage {
@@ -55,30 +55,30 @@ impl Stage {
         match self {
             Stage::Setup => "setup",
             Stage::Probe => "envprobe",
-            Stage::Command => "commande",
-            Stage::Kernel => "extraction du noyau",
+            Stage::Command => "command",
+            Stage::Kernel => "kernel extraction",
         }
     }
 }
 
-/// Métriques du processus QEMU et de la VM, rafraîchies chaque seconde.
+/// Metrics of the QEMU process and the VM, refreshed every second.
 #[derive(Debug, Clone, Copy, Default, Serialize)]
 pub struct Metrics {
-    /// CPU consommé par QEMU, en pourcentage d'un cœur (peut dépasser 100).
+    /// CPU used by QEMU, as a percentage of one core (can exceed 100).
     pub cpu_percent: f64,
     pub rss_bytes: u64,
     pub disk_read_bytes: u64,
     pub disk_write_bytes: u64,
-    /// Mémoire vue par l'invité selon le ballon virtio, si disponible.
+    /// Memory seen by the guest according to the virtio balloon, if available.
     pub guest_memory_bytes: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum VmEvent {
-    /// Cible mise en file, en attente d'un slot d'exécution.
+    /// Target queued, waiting for an execution slot.
     Queued,
-    /// Message informatif (résolution d'image, avertissement…).
+    /// Informational message (image resolution, warning…).
     Info {
         message: String,
     },
@@ -87,12 +87,12 @@ pub enum VmEvent {
         total: Option<u64>,
     },
     Verifying,
-    /// Image prête, issue du cache ou fraîchement téléchargée.
+    /// Image ready, from the cache or freshly downloaded.
     ImageReady {
         file: String,
         cached: bool,
     },
-    /// Boot préalable pour extraire noyau et initramfs (boot direct).
+    /// Preliminary boot to extract the kernel and initramfs (direct boot).
     Preparing,
     Booting {
         pid: u32,
@@ -100,7 +100,7 @@ pub enum VmEvent {
         console: PathBuf,
         direct_kernel: bool,
     },
-    /// L'agent invité a répondu : temps depuis le démarrage de la VM.
+    /// The guest agent answered: time since the VM started.
     Booted {
         boot_ms: u64,
     },
@@ -115,32 +115,32 @@ pub enum VmEvent {
         stream: Stream,
         line: String,
     },
-    /// Octets bruts de la console série (séquences ANSI comprises).
+    /// Raw serial console bytes (ANSI sequences included).
     #[serde(skip)]
     Console(Vec<u8>),
     Metrics(Metrics),
     Paused,
     Resumed,
-    /// Résultat disponible (la VM peut rester allumée avec --hold).
+    /// Result available (the VM may stay up with --hold).
     Finished(Box<TargetResult>),
-    /// VM gardée après la commande : shell root sur la console série.
+    /// VM kept up after the command: root shell on the serial console.
     Holding,
-    /// Processus QEMU terminé.
+    /// QEMU process exited.
     Stopped,
 }
 
-/// Commandes envoyées à une cible depuis un consommateur (TUI).
+/// Commands sent to a target by a consumer (TUI).
 #[derive(Debug, Clone)]
 pub enum Control {
     Pause,
     Resume,
     Kill,
     Restart,
-    /// Octets à écrire sur la console série.
+    /// Bytes to write to the serial console.
     ConsoleInput(Vec<u8>),
 }
 
-/// Émetteur lié à une cible.
+/// Sender bound to one target.
 #[derive(Clone)]
 pub struct Emitter {
     target: String,
@@ -156,8 +156,8 @@ impl Emitter {
     }
 
     pub fn emit(&self, kind: VmEvent) {
-        // Un consommateur parti (Ctrl+C) n'empêche pas l'orchestrateur de
-        // terminer proprement.
+        // A consumer that went away (Ctrl+C) does not stop the orchestrator from
+        // finishing cleanly.
         let _ = self.tx.send(Event {
             target: self.target.clone(),
             kind,

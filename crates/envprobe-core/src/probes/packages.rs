@@ -1,4 +1,4 @@
-//! Gestionnaires de paquets présents.
+//! Package managers present.
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -44,7 +44,7 @@ pub fn probe() -> Section {
     s.push(
         "managers",
         Value::ok(if found.is_empty() {
-            "aucun".to_string()
+            "none".to_string()
         } else {
             found.join(", ")
         }),

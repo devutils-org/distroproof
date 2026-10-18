@@ -1,4 +1,4 @@
-//! Version, ligne de commande et configuration du noyau.
+//! Kernel version, command line and configuration.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -30,7 +30,7 @@ pub fn probe() -> Section {
             s.push("version", Value::ok(u.version.as_str()));
         }
         Err(e) => {
-            let v = Value::unavailable(format!("uname : {e}"));
+            let v = Value::unavailable(format!("uname: {e}"));
             s.push("release", v.clone());
             s.push("version", v);
         }
@@ -44,7 +44,7 @@ pub fn probe() -> Section {
                 let value = config
                     .get(*key)
                     .map(|v| Value::ok(v.as_str()))
-                    .unwrap_or_else(|| Value::ok("absente de la config"));
+                    .unwrap_or_else(|| Value::ok("not in the config"));
                 s.push(*key, value);
             }
         }
@@ -58,7 +58,7 @@ pub fn probe() -> Section {
     s
 }
 
-/// Configuration du noyau courant : `/proc/config.gz`, puis les emplacements des distros.
+/// Configuration of the running kernel: `/proc/config.gz`, then the distro locations.
 pub(crate) fn load_config(
     release: Option<&str>,
 ) -> Result<(String, BTreeMap<String, String>), Value> {
@@ -68,7 +68,7 @@ pub(crate) fn load_config(
             Ok(map) => return Ok(("/proc/config.gz".to_string(), map)),
             Err(e) => {
                 last = Some(Value::unavailable(format!(
-                    "/proc/config.gz illisible : {e}"
+                    "/proc/config.gz unreadable: {e}"
                 )))
             }
         },
@@ -93,12 +93,12 @@ pub(crate) fn load_config(
     }
     Err(last.unwrap_or_else(|| {
         Value::unavailable(
-            "ni /proc/config.gz, ni /boot/config-<release>, ni /lib/modules/<release>/config",
+            "neither /proc/config.gz nor /boot/config-<release> nor /lib/modules/<release>/config",
         )
     }))
 }
 
-/// `LINUX_VERSION_CODE` déduit de la release, exigé par les kprobes des noyaux < 5.0.
+/// `LINUX_VERSION_CODE` derived from the release, required by kprobes on kernels < 5.0.
 pub(crate) fn version_code(release: &str) -> u32 {
     let mut parts = release
         .split(|c: char| !c.is_ascii_digit())

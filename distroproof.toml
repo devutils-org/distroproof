@@ -1,8 +1,8 @@
-# Matrice de dogfooding : envprobe testé par distroproof sur les distros
-# cibles, avec des variantes de noyau et de privilèges.
+# Dogfooding matrix: envprobe tested by distroproof on the target distros,
+# with kernel and privilege variants.
 #
-#   distroproof up                    # TUI si terminal, sinon texte
-#   distroproof up --markdown out.md  # résumé pour un commentaire de PR
+#   distroproof up                    # TUI in a terminal, text otherwise
+#   distroproof up --markdown out.md  # summary for a PR comment
 
 [defaults]
 memory = "1G"
@@ -37,7 +37,7 @@ image = "arch"
 name = "alpine"
 image = "alpine"
 
-# Variantes : perf verrouillé, lockdown, PMU masquée avec capabilities.
+# Variants: locked-down perf, lockdown, hidden PMU with capabilities.
 [[target]]
 name = "ubuntu-paranoid"
 image = "ubuntu-22.04"

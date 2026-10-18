@@ -1,6 +1,6 @@
-//! Types de programmes, types de maps et helpers BPF, sondés par des appels
-//! `bpf()` minimaux (équivalent de `bpftool feature probe`, sans libbpf).
-//! Chaque objet créé est fermé immédiatement : rien ne reste chargé.
+//! BPF program types, map types and helpers, probed with minimal `bpf()`
+//! calls (the equivalent of `bpftool feature probe`, without libbpf).
+//! Every object created is closed immediately: nothing stays loaded.
 
 use crate::probes::kernel;
 use crate::sys::{self, BpfInsn, MapCreate, ProgLoad};
@@ -11,7 +11,7 @@ const BPF_F_NO_PREALLOC: u32 = 1;
 const BPF_F_SLEEPABLE: u32 = 1 << 4;
 const PROG_KPROBE: u32 = 2;
 
-/// (nom, type, expected_attach_type, prog_flags)
+/// (name, type, expected_attach_type, prog_flags)
 const PROG_TYPES: &[(&str, u32, u32, u32)] = &[
     ("socket_filter", 1, 0, 0),
     ("kprobe", PROG_KPROBE, 0, 0),
@@ -47,10 +47,10 @@ const PROG_TYPES: &[(&str, u32, u32, u32)] = &[
     ("netfilter", 32, 45, 0),
 ];
 
-/// Types qui exigent une cible BTF (fonction à attacher) pour être chargés.
+/// Types that need a BTF target (a function to attach to) to be loaded.
 const PROG_TYPES_BTF: &[&str] = &["tracing", "struct_ops", "ext", "lsm"];
 
-/// (nom, type, key_size, value_size, max_entries, flags) ; max_entries 0 = taille de page.
+/// (name, type, key_size, value_size, max_entries, flags); max_entries 0 = page size.
 const MAP_TYPES: &[(&str, u32, u32, u32, u32, u32)] = &[
     ("hash", 1, 4, 8, 1, 0),
     ("array", 2, 4, 8, 1, 0),
@@ -76,7 +76,7 @@ const MAP_TYPES: &[(&str, u32, u32, u32, u32, u32)] = &[
     ("user_ringbuf", 31, 0, 0, 0, 0),
 ];
 
-/// Helpers utiles au tracing, testés dans un programme kprobe.
+/// Helpers useful for tracing, tested in a kprobe program.
 const HELPERS: &[(&str, i32)] = &[
     ("ktime_get_ns", 5),
     ("trace_printk", 6),
@@ -103,19 +103,19 @@ pub fn probe() -> Section {
         .unwrap_or(0);
     let trivial = [BpfInsn::mov_r0(0), BpfInsn::exit()];
 
-    // Premier appel : le syscall existe-t-il seulement ?
+    // First call: does the syscall even exist?
     let syscall = load(1, 0, 0, kern_version, &trivial, None);
     if syscall == Err(libc::ENOSYS) {
         s.push(
             "syscall",
-            Value::unavailable("ENOSYS : bpf() absent (CONFIG_BPF_SYSCALL)"),
+            Value::unavailable("ENOSYS: bpf() missing (CONFIG_BPF_SYSCALL)"),
         );
         return s;
     }
     s.push_privileged(
         "syscall",
         match syscall {
-            Ok(()) => Value::ok("disponible"),
+            Ok(()) => Value::ok("available"),
             Err(e) => util::errno_value(e),
         },
     );
@@ -136,7 +136,7 @@ pub fn probe() -> Section {
     for name in PROG_TYPES_BTF {
         s.push(
             format!("prog.{name}"),
-            Value::unavailable("non sondé : nécessite une cible BTF"),
+            Value::unavailable("not probed: needs a BTF target"),
         );
     }
 
@@ -186,15 +186,15 @@ fn log_text(log: &[u8]) -> String {
     String::from_utf8_lossy(&log[..end]).into_owned()
 }
 
-/// Convention de bpftool : EINVAL / EOPNOTSUPP / E2BIG signifient « type inconnu ».
+/// bpftool convention: EINVAL / EOPNOTSUPP / E2BIG mean "unknown type".
 fn unsupported(errno: i32) -> bool {
     matches!(errno, libc::EINVAL | libc::EOPNOTSUPP | libc::E2BIG | 524)
 }
 
 fn interpret_simple(res: Result<(), i32>) -> Value {
     match res {
-        Ok(()) => Value::ok("supporté"),
-        Err(e) if unsupported(e) => Value::ok(format!("non supporté ({})", errno_name(e))),
+        Ok(()) => Value::ok("supported"),
+        Err(e) if unsupported(e) => Value::ok(format!("unsupported ({})", errno_name(e))),
         Err(e) => util::errno_value(e),
     }
 }
@@ -205,7 +205,7 @@ fn interpret_prog(res: Result<(), i32>, log: &[u8]) -> Value {
             let text = log_text(log);
             match text.lines().rev().find(|l| !l.trim().is_empty()) {
                 Some(line) => {
-                    Value::unavailable(format!("rejeté par le vérificateur : {}", line.trim()))
+                    Value::unavailable(format!("rejected by the verifier: {}", line.trim()))
                 }
                 None => Value::denied("EACCES"),
             }
@@ -222,19 +222,19 @@ fn interpret_helper(res: Result<(), i32>, log: &[u8]) -> Value {
         "program of this type cannot use helper ",
     ];
     match res {
-        Ok(()) => Value::ok("supporté"),
-        Err(_) if missing.iter().any(|m| text.contains(m)) => Value::ok("non supporté"),
-        // Le vérificateur a dépassé l'appel du helper avant de rejeter le programme.
-        Err(_) if !text.trim().is_empty() => Value::ok("supporté"),
+        Ok(()) => Value::ok("supported"),
+        Err(_) if missing.iter().any(|m| text.contains(m)) => Value::ok("unsupported"),
+        // The verifier got past the helper call before rejecting the program.
+        Err(_) if !text.trim().is_empty() => Value::ok("supported"),
         Err(e) => util::errno_value(e),
     }
 }
 
 fn jit() -> Value {
     match util::read_trimmed("/proc/sys/net/core/bpf_jit_enable") {
-        Ok(v) if v == "0" => Value::ok("désactivé"),
-        Ok(v) if v == "1" => Value::ok("activé"),
-        Ok(v) if v == "2" => Value::ok("activé (debug)"),
+        Ok(v) if v == "0" => Value::ok("disabled"),
+        Ok(v) if v == "1" => Value::ok("enabled"),
+        Ok(v) if v == "2" => Value::ok("enabled (debug)"),
         Ok(v) => Value::ok(v),
         Err(v) => v,
     }
@@ -252,20 +252,20 @@ mod tests {
 
     #[test]
     fn helper_interpretation() {
-        assert_eq!(interpret_helper(Ok(()), &[0]), Value::ok("supporté"));
+        assert_eq!(interpret_helper(Ok(()), &[0]), Value::ok("supported"));
         assert_eq!(
             interpret_helper(
                 Err(libc::EINVAL),
                 &log("0: (85) call unknown#999\ninvalid func unknown#999\n")
             ),
-            Value::ok("non supporté")
+            Value::ok("unsupported")
         );
         assert_eq!(
             interpret_helper(
                 Err(libc::EACCES),
                 &log("0: (85) call bpf_probe_read_kernel#113\nR1 !read_ok\n")
             ),
-            Value::ok("supporté")
+            Value::ok("supported")
         );
         assert_eq!(
             interpret_helper(Err(libc::EPERM), &[0]),
@@ -277,7 +277,7 @@ mod tests {
     fn prog_interpretation() {
         assert_eq!(
             interpret_prog(Err(libc::EINVAL), &[0]),
-            Value::ok("non supporté (EINVAL)")
+            Value::ok("unsupported (EINVAL)")
         );
         assert_eq!(
             interpret_prog(Err(libc::EPERM), &[0]),

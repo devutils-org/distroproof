@@ -1,6 +1,6 @@
 [package]
 name = "envprobe"
-description = "Décrit l'environnement Linux courant"
+description = "Describes the current Linux environment"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

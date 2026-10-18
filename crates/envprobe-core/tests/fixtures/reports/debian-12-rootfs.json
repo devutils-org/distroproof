@@ -32,7 +32,7 @@
         {
           "key": "id_like",
           "status": "unavailable",
-          "value": "ID_LIKE non défini",
+          "value": "ID_LIKE not set",
           "privileged": false
         },
         {
@@ -50,7 +50,7 @@
         {
           "key": "container",
           "status": "ok",
-          "value": "aucun détecté",
+          "value": "none detected",
           "privileged": false
         }
       ]
@@ -73,7 +73,7 @@
         {
           "key": "cmdline",
           "status": "ok",
-          "value": "init=/opt/orb/vinit workqueue.power_efficient=1 cgroup.memory=nokmem,nosocket swiotlb=noforce slab_min_order=2 cgroup_v1_proc=1 nbd.nbds_max=4 can.stats_timer=0 isolcpus=7 arm64.nosme root=/dev/vda rootfstype=erofs ro console=hvc0 quiet ORB_S=<masqué> earlycon=pl011,mmio32,0x40001000",
+          "value": "init=/opt/orb/vinit workqueue.power_efficient=1 cgroup.memory=nokmem,nosocket swiotlb=noforce slab_min_order=2 cgroup_v1_proc=1 nbd.nbds_max=4 can.stats_timer=0 isolcpus=7 arm64.nosme root=/dev/vda rootfstype=erofs ro console=hvc0 quiet ORB_S=<redacted> earlycon=pl011,mmio32,0x40001000",
           "privileged": false
         },
         {
@@ -139,7 +139,7 @@
         {
           "key": "CONFIG_PERF_EVENTS",
           "status": "ok",
-          "value": "absente de la config",
+          "value": "not in the config",
           "privileged": false
         },
         {
@@ -168,7 +168,7 @@
         {
           "key": "loadable",
           "status": "ok",
-          "value": "non (user namespace non initial)",
+          "value": "no (non-initial user namespace)",
           "privileged": true
         }
       ]
@@ -197,13 +197,13 @@
         {
           "key": "net.core.bpf_jit_enable",
           "status": "unavailable",
-          "value": "/proc/sys/net/core/bpf_jit_enable absent",
+          "value": "/proc/sys/net/core/bpf_jit_enable missing",
           "privileged": false
         },
         {
           "key": "net.core.bpf_jit_harden",
           "status": "unavailable",
-          "value": "/proc/sys/net/core/bpf_jit_harden absent",
+          "value": "/proc/sys/net/core/bpf_jit_harden missing",
           "privileged": false
         },
         {
@@ -250,19 +250,19 @@
         {
           "key": "apparmor_profiles",
           "status": "unavailable",
-          "value": "/sys/kernel/security/apparmor/profiles absent",
+          "value": "/sys/kernel/security/apparmor/profiles missing",
           "privileged": true
         },
         {
           "key": "lockdown",
           "status": "unavailable",
-          "value": "/sys/kernel/security/lockdown absent",
+          "value": "/sys/kernel/security/lockdown missing",
           "privileged": false
         },
         {
           "key": "secure_boot",
           "status": "ok",
-          "value": "non (démarrage non EFI)",
+          "value": "no (non-EFI boot)",
           "privileged": false
         }
       ]
@@ -291,49 +291,49 @@
         {
           "key": "CAP_BPF",
           "status": "ok",
-          "value": "oui",
+          "value": "yes",
           "privileged": true
         },
         {
           "key": "CAP_PERFMON",
           "status": "ok",
-          "value": "oui",
+          "value": "yes",
           "privileged": true
         },
         {
           "key": "CAP_SYS_ADMIN",
           "status": "ok",
-          "value": "oui",
+          "value": "yes",
           "privileged": true
         },
         {
           "key": "CAP_SYS_PTRACE",
           "status": "ok",
-          "value": "oui",
+          "value": "yes",
           "privileged": true
         },
         {
           "key": "CAP_SYS_MODULE",
           "status": "ok",
-          "value": "oui",
+          "value": "yes",
           "privileged": true
         },
         {
           "key": "user_namespace",
           "status": "ok",
-          "value": "non initial (capabilities limitées au namespace)",
+          "value": "non-initial (capabilities limited to the namespace)",
           "privileged": true
         },
         {
           "key": "seccomp",
           "status": "ok",
-          "value": "désactivé",
+          "value": "disabled",
           "privileged": true
         },
         {
           "key": "no_new_privs",
           "status": "ok",
-          "value": "non",
+          "value": "no",
           "privileged": true
         }
       ]
@@ -344,7 +344,7 @@
         {
           "key": "vmlinux",
           "status": "ok",
-          "value": "présent, 5279975 octets",
+          "value": "present, 5279975 bytes",
           "privileged": false
         },
         {
@@ -367,7 +367,7 @@
         {
           "key": "jit",
           "status": "unavailable",
-          "value": "/proc/sys/net/core/bpf_jit_enable absent",
+          "value": "/proc/sys/net/core/bpf_jit_enable missing",
           "privileged": false
         },
         {
@@ -457,7 +457,7 @@
         {
           "key": "prog.cgroup_device",
           "status": "ok",
-          "value": "supporté",
+          "value": "supported",
           "privileged": true
         },
         {
@@ -541,25 +541,25 @@
         {
           "key": "prog.tracing",
           "status": "unavailable",
-          "value": "non sondé : nécessite une cible BTF",
+          "value": "not probed: needs a BTF target",
           "privileged": false
         },
         {
           "key": "prog.struct_ops",
           "status": "unavailable",
-          "value": "non sondé : nécessite une cible BTF",
+          "value": "not probed: needs a BTF target",
           "privileged": false
         },
         {
           "key": "prog.ext",
           "status": "unavailable",
-          "value": "non sondé : nécessite une cible BTF",
+          "value": "not probed: needs a BTF target",
           "privileged": false
         },
         {
           "key": "prog.lsm",
           "status": "unavailable",
-          "value": "non sondé : nécessite une cible BTF",
+          "value": "not probed: needs a BTF target",
           "privileged": false
         },
         {
@@ -786,7 +786,7 @@
         {
           "key": "sw_cpu_clock.user",
           "status": "ok",
-          "value": "ouvert",
+          "value": "opened",
           "privileged": true
         },
         {
@@ -798,7 +798,7 @@
         {
           "key": "hw_cpu_cycles.user",
           "status": "ok",
-          "value": "non supporté (ENOENT)",
+          "value": "unsupported (ENOENT)",
           "privileged": true
         },
         {
@@ -845,7 +845,7 @@
         {
           "key": "kallsyms",
           "status": "ok",
-          "value": "lisible, adresses masquées (kptr_restrict)",
+          "value": "readable, addresses hidden (kptr_restrict)",
           "privileged": true
         }
       ]
@@ -879,7 +879,7 @@
         {
           "key": "source",
           "status": "ok",
-          "value": "scan des répertoires",
+          "value": "directory scan",
           "privileged": false
         },
         {
@@ -938,7 +938,7 @@
         {
           "key": "merged_usr",
           "status": "ok",
-          "value": "oui",
+          "value": "yes",
           "privileged": false
         },
         {
@@ -950,7 +950,7 @@
         {
           "key": "multiarch",
           "status": "ok",
-          "value": "oui (/usr/lib/aarch64-linux-gnu)",
+          "value": "yes (/usr/lib/aarch64-linux-gnu)",
           "privileged": false
         },
         {
@@ -984,7 +984,7 @@
         {
           "key": "kind",
           "status": "ok",
-          "value": "autre (envprobe)",
+          "value": "other (envprobe)",
           "privileged": false
         },
         {
@@ -1041,55 +1041,55 @@
         {
           "key": "XDG_CONFIG_HOME",
           "status": "ok",
-          "value": "/home/moha/.config (défaut)",
+          "value": "/home/moha/.config (default)",
           "privileged": false
         },
         {
           "key": "XDG_DATA_HOME",
           "status": "ok",
-          "value": "/home/moha/.local/share (défaut)",
+          "value": "/home/moha/.local/share (default)",
           "privileged": false
         },
         {
           "key": "XDG_CACHE_HOME",
           "status": "ok",
-          "value": "/home/moha/.cache (défaut)",
+          "value": "/home/moha/.cache (default)",
           "privileged": false
         },
         {
           "key": "XDG_STATE_HOME",
           "status": "ok",
-          "value": "/home/moha/.local/state (défaut)",
+          "value": "/home/moha/.local/state (default)",
           "privileged": false
         },
         {
           "key": "XDG_RUNTIME_DIR",
           "status": "ok",
-          "value": "/run/user/501 (défini)",
+          "value": "/run/user/501 (set)",
           "privileged": false
         },
         {
           "key": "XDG_DATA_DIRS",
           "status": "ok",
-          "value": "/usr/local/share:/usr/share (défaut)",
+          "value": "/usr/local/share:/usr/share (default)",
           "privileged": false
         },
         {
           "key": "XDG_CONFIG_DIRS",
           "status": "ok",
-          "value": "/etc/xdg (défaut)",
+          "value": "/etc/xdg (default)",
           "privileged": false
         },
         {
           "key": "XDG_SESSION_TYPE",
           "status": "ok",
-          "value": "tty (défini)",
+          "value": "tty (set)",
           "privileged": false
         },
         {
           "key": "XDG_CURRENT_DESKTOP",
           "status": "ok",
-          "value": "non défini",
+          "value": "not set",
           "privileged": false
         }
       ]

@@ -22,7 +22,7 @@ pub fn parse(text: &str) -> Vec<Mount> {
         .collect()
 }
 
-/// Le noyau encode espaces, tabulations et `\` en octal (`\040`).
+/// The kernel encodes spaces, tabs and `\` in octal (`\040`).
 fn unescape(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());

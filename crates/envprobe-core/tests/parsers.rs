@@ -1,4 +1,4 @@
-//! Parseurs testés sur des fichiers réels de plusieurs distros.
+//! Parsers tested on real files from several distros.
 
 use std::io::Write;
 
@@ -103,7 +103,7 @@ fn proc_status_variants() {
     let docker = status::parse(fixture!("status/docker-root"));
     let caps = docker.cap_eff().unwrap();
     assert_eq!(docker.seccomp(), Some(2));
-    // Docker garde CAP_NET_RAW (13) mais retire CAP_SYS_ADMIN (21) et CAP_BPF (39).
+    // Docker keeps CAP_NET_RAW (13) but drops CAP_SYS_ADMIN (21) and CAP_BPF (39).
     assert_eq!((caps >> 13) & 1, 1);
     assert_eq!((caps >> 21) & 1, 0);
     assert_eq!((caps >> 39) & 1, 0);

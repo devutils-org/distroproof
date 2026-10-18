@@ -206,13 +206,11 @@ taken right before the command, then:
   the suspicious difference (missing BTF, paranoid set to 3, musl…);
 - writes `--json`, `--junit` (CI) and `--markdown` (PR comment) on request.
 
-Sample output (the CLI prints its messages in French):
-
 ```text
-[ubuntu-18.04] échec (code 1)
-  comparée à ubuntu-22.04 : 65 différences significatives
-  cause probable : btf.vmlinux : présent, 5286152 octets → indisponible (/sys/kernel/btf/vmlinux absent)
-  aussi : kernel.CONFIG_DEBUG_INFO_BTF : y → absente de la config
+[ubuntu-18.04] failed (code 1)
+  compared with ubuntu-22.04: 65 significant differences
+  probable cause: btf.vmlinux: present, 5286152 bytes → unavailable (/sys/kernel/btf/vmlinux missing)
+  also: kernel.CONFIG_DEBUG_INFO_BTF: y → not in the config
 ```
 
 Examples: [`distroproof.toml`](distroproof.toml) (envprobe dogfooding on 10

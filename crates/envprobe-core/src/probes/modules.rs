@@ -1,4 +1,4 @@
-//! Modules noyau chargés et possibilité d'en charger.
+//! Loaded kernel modules and whether more can be loaded.
 
 use std::fs;
 use std::path::Path;
@@ -18,7 +18,7 @@ pub fn probe() -> Section {
             s.push(
                 "loaded",
                 Value::ok(if names.is_empty() {
-                    "(aucun)".to_string()
+                    "(none)".to_string()
                 } else {
                     names.join(", ")
                 }),
@@ -36,19 +36,19 @@ pub fn probe() -> Section {
 
 fn loadable() -> Value {
     if !Path::new("/proc/modules").exists() {
-        return Value::ok("non (noyau sans support des modules)");
+        return Value::ok("no (kernel without module support)");
     }
     if util::read_trimmed("/proc/sys/kernel/modules_disabled").as_deref() == Ok("1") {
-        return Value::ok("non (kernel.modules_disabled=1)");
+        return Value::ok("no (kernel.modules_disabled=1)");
     }
     if privileges::initial_user_ns() == Some(false) {
-        return Value::ok("non (user namespace non initial)");
+        return Value::ok("no (non-initial user namespace)");
     }
     match privileges::cap_eff() {
         Some(caps) if privileges::has_cap(caps, CAP_SYS_MODULE) => {
-            Value::ok("oui (CAP_SYS_MODULE)")
+            Value::ok("yes (CAP_SYS_MODULE)")
         }
-        Some(_) => Value::ok("non (CAP_SYS_MODULE absente)"),
-        None => Value::unavailable("capabilities illisibles"),
+        Some(_) => Value::ok("no (CAP_SYS_MODULE missing)"),
+        None => Value::unavailable("capabilities unreadable"),
     }
 }

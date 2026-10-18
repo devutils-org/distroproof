@@ -1,4 +1,4 @@
-//! Distro, architecture, virtualisation, conteneur.
+//! Distro, architecture, virtualization, container.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -24,7 +24,7 @@ pub fn probe() -> Section {
                 let value = map
                     .get(field)
                     .map(|v| Value::ok(v.as_str()))
-                    .unwrap_or_else(|| Value::unavailable(format!("{field} non défini")));
+                    .unwrap_or_else(|| Value::unavailable(format!("{field} not set")));
                 s.push(key, value);
             }
         }
@@ -39,7 +39,7 @@ pub fn probe() -> Section {
         "arch",
         match sys::uname() {
             Ok(u) => Value::ok(u.machine),
-            Err(e) => Value::unavailable(format!("uname : {e}")),
+            Err(e) => Value::unavailable(format!("uname: {e}")),
         },
     );
     s.push("virtualization", detect_virt());
@@ -48,7 +48,7 @@ pub fn probe() -> Section {
 }
 
 fn read_os_release() -> Result<(&'static str, BTreeMap<String, String>), Value> {
-    let mut last = Value::unavailable("os-release absent");
+    let mut last = Value::unavailable("os-release missing");
     for path in OS_RELEASE {
         match fs::read_to_string(path) {
             Ok(text) => return Ok((path, os_release::parse(&text))),
@@ -100,10 +100,10 @@ fn detect_virt() -> Value {
             .filter(|l| l.starts_with("flags"))
             .any(|l| l.split_whitespace().any(|f| f == "hypervisor"));
         if flagged {
-            return Value::ok("hyperviseur inconnu (flag cpuinfo hypervisor)");
+            return Value::ok("unknown hypervisor (cpuinfo hypervisor flag)");
         }
     }
-    Value::ok("non détectée")
+    Value::ok("none detected")
 }
 
 fn detect_container() -> Value {
@@ -131,7 +131,7 @@ fn detect_container() -> Value {
         }
     }
     if let Ok(kind) = std::env::var("container") {
-        return Value::ok(format!("{kind} (variable container)"));
+        return Value::ok(format!("{kind} (container variable)"));
     }
-    Value::ok("aucun détecté")
+    Value::ok("none detected")
 }

@@ -1,5 +1,5 @@
-//! Rapport de matrice : tableau des résultats, corrélation des échecs avec les
-//! différences d'environnement, et rendus terminal, JSON, JUnit et Markdown.
+//! Matrix report: results table, correlation of failures with environment
+//! differences, and terminal, JSON, JUnit and Markdown renderings.
 
 use std::fmt::Write as _;
 
@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use crate::model::{Outcome, TargetResult};
 use crate::progress::fmt_ms;
 
-/// Entrées qui changent d'une VM à l'autre sans rien dire de l'environnement.
+/// Entries that change from one VM to the next without saying anything about
+/// the environment.
 const NOISE: &[(&str, &str)] = &[
     ("kernel", "cmdline"),
     ("kernel", "version"),
@@ -27,7 +28,7 @@ fn is_noise(section: &str, key: &str) -> bool {
     NOISE.iter().any(|(s, k)| *s == section && *k == key)
 }
 
-/// Poids d'une différence : à quel point elle explique, a priori, un échec.
+/// Weight of a difference: how likely it is, a priori, to explain a failure.
 fn weight(section: &str, key: &str) -> u32 {
     match (section, key) {
         ("btf", "vmlinux") => 10,
@@ -63,9 +64,9 @@ fn weight(section: &str, key: &str) -> u32 {
     }
 }
 
-/// Mots-clés de stderr, les entrées du rapport qu'ils désignent (`section` ou
-/// `section.clé`, préfixe accepté) et le bonus accordé : un mot précis
-/// (« btf ») pèse plus qu'un mot générique (« bpf », contenu dans « libbpf »).
+/// stderr keywords, the report entries they point to (`section` or
+/// `section.key`, prefixes accepted) and the bonus they give: a precise word
+/// ("btf") weighs more than a generic one ("bpf", found in "libbpf").
 const KEYWORDS: &[(&[&str], &[&str], u32)] = &[
     (
         &["btf", "vmlinux"],
@@ -143,8 +144,8 @@ const KEYWORDS: &[(&[&str], &[&str], u32)] = &[
     ),
 ];
 
-/// Bonus le plus fort parmi les mots-clés présents dans la sortie qui
-/// désignent cette entrée.
+/// Highest bonus among the keywords present in the output that point to this
+/// entry.
 fn keyword_hits(text: &str, section: &str, key: &str) -> Option<(&'static str, u32)> {
     let full = format!("{section}.{key}");
     KEYWORDS
@@ -163,19 +164,19 @@ fn keyword_hits(text: &str, section: &str, key: &str) -> Option<(&'static str, u
         .max_by_key(|(_, boost)| *boost)
 }
 
-/// Suspects affichés au plus, et par section : une section entière qui
-/// disparaît (tous les helpers BPF) ne masque pas les autres pistes.
+/// Maximum number of suspects shown, overall and per section: a whole section
+/// disappearing (every BPF helper) does not hide the other leads.
 const MAX_SUSPECTS: usize = 8;
 const MAX_PER_SECTION: usize = 2;
 
-/// Différence d'environnement suspectée d'expliquer un échec.
+/// Environment difference suspected of explaining a failure.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Suspect {
     pub section: String,
     pub key: String,
-    /// Valeur sur la cible en échec.
+    /// Value on the failed target.
     pub failed: String,
-    /// Valeur sur la cible de référence, si elle existe.
+    /// Value on the reference target, if it exists.
     pub reference: Option<String>,
     pub score: u32,
     pub reasons: Vec<String>,
@@ -196,17 +197,17 @@ impl Suspect {
         } else {
             format!(" [{}]", self.reasons.join(", "))
         };
-        format!("{} : {change}{reasons}", self.id())
+        format!("{}: {change}{reasons}", self.id())
     }
 }
 
-/// Analyse d'une cible en échec.
+/// Analysis of a failed target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Analysis {
     pub target: String,
-    /// Cible réussie la plus proche, servant de référence au diff.
+    /// Closest successful target, used as the diff reference.
     pub reference: Option<String>,
-    /// Nombre de différences significatives avec la référence.
+    /// Number of significant differences with the reference.
     pub differences: usize,
     pub suspects: Vec<Suspect>,
     #[serde(default)]
@@ -223,7 +224,7 @@ pub struct MatrixReport {
     pub analysis: Vec<Analysis>,
 }
 
-/// Différences significatives (hors bruit) entre deux rapports.
+/// Significant differences (noise excluded) between two reports.
 fn significant(a: &Report, b: &Report) -> Vec<(String, Change)> {
     let mut out = Vec::new();
     for d in diff::diff(a, b) {
@@ -247,7 +248,7 @@ fn show(v: &Value) -> String {
     }
 }
 
-/// Relie l'échec de `failed` aux différences avec la cible réussie la plus proche.
+/// Ties the failure of `failed` to its differences with the closest successful target.
 pub fn analyze(failed: &TargetResult, all: &[TargetResult]) -> Analysis {
     let mut analysis = Analysis {
         target: failed.name.clone(),
@@ -257,7 +258,7 @@ pub fn analyze(failed: &TargetResult, all: &[TargetResult]) -> Analysis {
         note: None,
     };
     let Some(report) = &failed.envprobe else {
-        analysis.note = Some("pas de rapport envprobe pour cette cible".into());
+        analysis.note = Some("no envprobe report for this target".into());
         return analysis;
     };
     let text = format!(
@@ -268,7 +269,7 @@ pub fn analyze(failed: &TargetResult, all: &[TargetResult]) -> Analysis {
     )
     .to_lowercase();
 
-    // Référence : la réussite la plus proche, à image égale de préférence.
+    // Reference: the closest success, preferably with the same image.
     let reference = all
         .iter()
         .filter(|r| r.outcome.is_success() && r.name != failed.name)
@@ -283,9 +284,10 @@ pub fn analyze(failed: &TargetResult, all: &[TargetResult]) -> Analysis {
                 let (failed_value, ref_value) = match &change {
                     Change::Changed { a, b, .. } => (b.clone(), Some(a.clone())),
                     Change::Added { value, .. } => (value.clone(), None),
-                    Change::Removed { value, .. } => {
-                        (Value::unavailable("absent du rapport"), Some(value.clone()))
-                    }
+                    Change::Removed { value, .. } => (
+                        Value::unavailable("missing from the report"),
+                        Some(value.clone()),
+                    ),
                 };
                 let key = change.key().to_string();
                 let mut score = weight(&section, &key);
@@ -294,11 +296,11 @@ pub fn analyze(failed: &TargetResult, all: &[TargetResult]) -> Analysis {
                     && matches!(ref_value, Some(Value::Ok(_)));
                 if lost {
                     score += 3;
-                    reasons.push("indisponible ici, présent sur la référence".to_string());
+                    reasons.push("unavailable here, present on the reference".to_string());
                 }
                 if let Some((word, boost)) = keyword_hits(&text, &section, &key) {
                     score += boost;
-                    reasons.push(format!("« {word} » dans la sortie"));
+                    reasons.push(format!("\"{word}\" in the output"));
                 }
                 analysis.suspects.push(Suspect {
                     section,
@@ -311,9 +313,9 @@ pub fn analyze(failed: &TargetResult, all: &[TargetResult]) -> Analysis {
             }
         }
         None => {
-            analysis.note = Some("aucune cible réussie pour comparer".into());
-            // Sans référence : les entrées absentes ou refusées que la
-            // sortie du programme désigne.
+            analysis.note = Some("no successful target to compare with".into());
+            // Without a reference: the missing or denied entries that the
+            // program's output points to.
             for section in &report.sections {
                 for entry in &section.entries {
                     if matches!(entry.value, Value::Ok(_)) || is_noise(&section.name, &entry.key) {
@@ -326,7 +328,7 @@ pub fn analyze(failed: &TargetResult, all: &[TargetResult]) -> Analysis {
                             failed: show(&entry.value),
                             reference: None,
                             score: weight(&section.name, &entry.key) + boost,
-                            reasons: vec![format!("« {word} » dans la sortie")],
+                            reasons: vec![format!("\"{word}\" in the output")],
                         });
                     }
                 }
@@ -380,10 +382,10 @@ impl MatrixReport {
     }
 
     pub fn to_json(&self) -> String {
-        serde_json::to_string_pretty(self).expect("rapport sérialisable")
+        serde_json::to_string_pretty(self).expect("serializable report")
     }
 
-    /// Tableau pour le terminal, avec couleurs ANSI si `color`.
+    /// Table for the terminal, with ANSI colors if `color`.
     pub fn to_text(&self, color: bool) -> String {
         let paint = |code: &str, s: &str| {
             if color {
@@ -406,7 +408,7 @@ impl MatrixReport {
                 ]
             })
             .collect();
-        let header = ["cible", "image", "noyau", "résultat", "boot", "durée"];
+        let header = ["target", "image", "kernel", "result", "boot", "duration"];
         let mut widths = header.map(|h| h.chars().count());
         for row in &rows {
             for (w, cell) in widths.iter_mut().zip(row) {
@@ -435,7 +437,7 @@ impl MatrixReport {
             line(row, &mut out, Some(t.outcome));
         }
         let (ok, total) = self.counts();
-        let _ = writeln!(out, "\n{ok}/{total} cibles réussies");
+        let _ = writeln!(out, "\n{ok}/{total} targets passed");
 
         for t in self.targets.iter().filter(|t| !t.outcome.is_success()) {
             let _ = writeln!(
@@ -444,14 +446,14 @@ impl MatrixReport {
                 paint("1", &format!("[{}] {}", t.name, outcome_cell(t)))
             );
             if let Some(e) = &t.error {
-                let _ = writeln!(out, "  erreur : {e}");
+                let _ = writeln!(out, "  error: {e}");
             }
             if let Some(a) = self.analysis_for(&t.name) {
                 write_analysis_text(&mut out, a);
             }
             let excerpt = stderr_excerpt(t, 8);
             if !excerpt.is_empty() {
-                let _ = writeln!(out, "  stderr :");
+                let _ = writeln!(out, "  stderr:");
                 for l in excerpt.lines() {
                     let _ = writeln!(out, "    {l}");
                 }
@@ -464,11 +466,8 @@ impl MatrixReport {
         let (ok, total) = self.counts();
         let mut md = String::new();
         let status = if ok == total { "✅" } else { "❌" };
-        let _ = writeln!(
-            md,
-            "## {status} distroproof : {ok}/{total} cibles réussies\n"
-        );
-        let _ = writeln!(md, "| Cible | Image | Noyau | Résultat | Boot | Durée |");
+        let _ = writeln!(md, "## {status} distroproof: {ok}/{total} targets passed\n");
+        let _ = writeln!(md, "| Target | Image | Kernel | Result | Boot | Duration |");
         let _ = writeln!(md, "| --- | --- | --- | --- | --- | --- |");
         for t in &self.targets {
             let icon = match t.outcome {
@@ -493,23 +492,23 @@ impl MatrixReport {
             let analysis = self.analysis_for(&t.name);
             let cause = analysis
                 .and_then(|a| a.suspects.first())
-                .map(|s| format!(" — cause probable : `{}`", s.id()))
+                .map(|s| format!(" — probable cause: `{}`", s.id()))
                 .unwrap_or_default();
             let _ = writeln!(
                 md,
-                "\n<details><summary><b>{}</b> : {}{cause}</summary>\n",
+                "\n<details><summary><b>{}</b>: {}{cause}</summary>\n",
                 t.name,
                 outcome_cell(t)
             );
             if let Some(e) = &t.error {
-                let _ = writeln!(md, "Erreur : {}\n", md_escape(e));
+                let _ = writeln!(md, "Error: {}\n", md_escape(e));
             }
             if let Some(a) = analysis {
                 match &a.reference {
                     Some(r) => {
                         let _ = writeln!(
                             md,
-                            "Comparée à `{r}` ({} différences significatives) :\n",
+                            "Compared with `{r}` ({} significant differences):\n",
                             a.differences
                         );
                     }
@@ -572,17 +571,17 @@ impl MatrixReport {
             let mut body = String::new();
             if let Some(a) = self.analysis_for(&t.name) {
                 if let Some(r) = &a.reference {
-                    let _ = writeln!(body, "comparée à {r} ({} différences)", a.differences);
+                    let _ = writeln!(body, "compared with {r} ({} differences)", a.differences);
                 }
                 for s in &a.suspects {
-                    let _ = writeln!(body, "suspect : {}", s.describe());
+                    let _ = writeln!(body, "suspect: {}", s.describe());
                 }
             }
             if let Some(e) = &t.error {
-                let _ = writeln!(body, "erreur : {e}");
+                let _ = writeln!(body, "error: {e}");
             }
             let message = match self.analysis_for(&t.name).and_then(|a| a.suspects.first()) {
-                Some(s) => format!("{} ; cause probable : {}", outcome_cell(t), s.id()),
+                Some(s) => format!("{}; probable cause: {}", outcome_cell(t), s.id()),
                 None => outcome_cell(t),
             };
             match t.outcome {
@@ -634,7 +633,7 @@ fn write_analysis_text(out: &mut String, a: &Analysis) {
         Some(r) => {
             let _ = writeln!(
                 out,
-                "  comparée à {r} : {} différences significatives",
+                "  compared with {r}: {} significant differences",
                 a.differences
             );
         }
@@ -645,19 +644,19 @@ fn write_analysis_text(out: &mut String, a: &Analysis) {
         }
     }
     for (i, s) in a.suspects.iter().take(5).enumerate() {
-        let label = if i == 0 { "cause probable" } else { "aussi" };
-        let _ = writeln!(out, "  {label} : {}", s.describe());
+        let label = if i == 0 { "probable cause" } else { "also" };
+        let _ = writeln!(out, "  {label}: {}", s.describe());
     }
 }
 
 pub fn outcome_cell(t: &TargetResult) -> String {
     match (t.outcome, t.exit_code()) {
-        (Outcome::Failure, Some(c)) if c != 0 => format!("échec (code {c})"),
+        (Outcome::Failure, Some(c)) if c != 0 => format!("failed (code {c})"),
         (o, _) => o.label().to_string(),
     }
 }
 
-/// Fin de stderr de la commande, ou à défaut l'erreur et la console.
+/// Tail of the command's stderr, or failing that the error and the console.
 pub fn stderr_excerpt(t: &TargetResult, lines: usize) -> String {
     let source = match &t.command {
         Some(c) if !c.stderr.trim().is_empty() => c.stderr.as_str(),
@@ -696,7 +695,7 @@ fn xml(s: &str) -> String {
     out
 }
 
-/// Date UTC au format RFC 3339, sans dépendance.
+/// UTC date in RFC 3339 format, without a dependency.
 pub fn now_rfc3339() -> String {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -707,7 +706,7 @@ pub fn now_rfc3339() -> String {
 fn rfc3339(secs: i64) -> String {
     let days = secs.div_euclid(86_400);
     let rem = secs.rem_euclid(86_400);
-    // Algorithme « civil from days » de Howard Hinnant.
+    // Howard Hinnant's "civil from days" algorithm.
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z.rem_euclid(146_097);
@@ -795,14 +794,14 @@ mod tests {
             "ubuntu-22.04",
             "ubuntu-22.04",
             Outcome::Success,
-            report(Value::ok("présent, 5 Mio"), "5.15.0", "4"),
+            report(Value::ok("present, 5 MiB"), "5.15.0", "4"),
             "",
         );
         let other = result(
             "debian-12",
             "debian-12",
             Outcome::Success,
-            report(Value::ok("présent, 6 Mio"), "6.1.0", "3"),
+            report(Value::ok("present, 6 MiB"), "6.1.0", "3"),
             "",
         );
         let ko = result(
@@ -810,29 +809,29 @@ mod tests {
             "ubuntu-18.04",
             Outcome::Failure,
             report(
-                Value::unavailable("/sys/kernel/btf/vmlinux absent"),
+                Value::unavailable("/sys/kernel/btf/vmlinux missing"),
                 "4.15.0",
                 "4",
             ),
-            "erreur : BTF du noyau introuvable\n",
+            "error: kernel BTF not found\n",
         );
         let all = vec![ok, other, ko];
         let m = MatrixReport::build(all, None);
         let a = m.analysis_for("ubuntu-18.04").unwrap();
-        // ubuntu-22.04 est plus proche (même paranoid) que debian-12.
+        // ubuntu-22.04 is closer (same paranoid) than debian-12.
         assert_eq!(a.reference.as_deref(), Some("ubuntu-22.04"));
-        // kernel.cmdline est du bruit : seuls release et vmlinux comptent.
+        // kernel.cmdline is noise: only release and vmlinux count.
         assert_eq!(a.differences, 2);
         assert_eq!(a.suspects[0].id(), "btf.vmlinux");
         assert!(a.suspects[0].reasons.iter().any(|r| r.contains("btf")));
         let text = m.to_text(false);
-        assert!(text.contains("cause probable : btf.vmlinux"), "{text}");
+        assert!(text.contains("probable cause: btf.vmlinux"), "{text}");
         let md = m.to_markdown();
-        assert!(md.contains("cause probable : `btf.vmlinux`"), "{md}");
-        assert!(md.contains("2/3 cibles réussies"));
+        assert!(md.contains("probable cause: `btf.vmlinux`"), "{md}");
+        assert!(md.contains("2/3 targets passed"));
         let junit = m.to_junit();
         assert!(junit.contains("failures=\"1\""));
-        assert!(junit.contains("cause probable : btf.vmlinux"));
+        assert!(junit.contains("probable cause: btf.vmlinux"));
         assert!(!m.all_succeeded());
         let back: MatrixReport = serde_json::from_str(&m.to_json()).unwrap();
         assert_eq!(back.targets.len(), 3);
@@ -844,7 +843,7 @@ mod tests {
             "alone",
             "ubuntu-18.04",
             Outcome::Failure,
-            report(Value::unavailable("absent"), "4.15.0", "4"),
+            report(Value::unavailable("missing"), "4.15.0", "4"),
             "libbpf: failed to find valid kernel BTF\n",
         );
         let a = analyze(&ko, std::slice::from_ref(&ko));

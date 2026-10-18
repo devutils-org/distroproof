@@ -1,4 +1,4 @@
-//! Thème de la TUI : `$XDG_CONFIG_HOME/distroproof/theme.toml`.
+//! TUI theme: `$XDG_CONFIG_HOME/distroproof/theme.toml`.
 //!
 //! ```toml
 //! [colors]
@@ -6,8 +6,8 @@
 //! success = "#9ece6a"
 //! ```
 //!
-//! Les couleurs sont en true color si le terminal l'annonce (`COLORTERM`),
-//! sinon ramenées à la palette 256 couleurs la plus proche.
+//! Colors are true color if the terminal advertises it (`COLORTERM`),
+//! otherwise mapped to the closest color of the 256-color palette.
 
 use std::collections::HashMap;
 
@@ -63,7 +63,7 @@ fn parse_hex(s: &str) -> Option<(u8, u8, u8)> {
     Some(((v >> 16) as u8, (v >> 8) as u8, v as u8))
 }
 
-/// Index xterm-256 le plus proche d'une couleur RGB (cube 6×6×6 ou gris).
+/// Closest xterm-256 index for an RGB color (6×6×6 cube or grays).
 pub fn to_256(r: u8, g: u8, b: u8) -> u8 {
     let level = |c: u8| -> u8 {
         match c {
@@ -101,14 +101,14 @@ fn truecolor() -> bool {
 }
 
 impl Theme {
-    /// Thème par défaut, surchargé par le fichier de l'utilisateur s'il existe.
-    /// Renvoie aussi un avertissement si le fichier est invalide.
+    /// Default theme, overridden by the user's file if it exists. Also returns
+    /// a warning if the file is invalid.
     pub fn load() -> (Theme, Option<String>) {
         let path = crate::dirs::config().join("theme.toml");
         let mut warning = None;
         let file: ThemeFile = match std::fs::read_to_string(&path) {
             Ok(text) => toml::from_str(&text).unwrap_or_else(|e| {
-                warning = Some(format!("{} : {}", path.display(), e.message()));
+                warning = Some(format!("{}: {}", path.display(), e.message()));
                 ThemeFile::default()
             }),
             Err(_) => ThemeFile::default(),
@@ -122,9 +122,9 @@ impl Theme {
                         colors.insert(key, rgb);
                     }
                 }
-                (false, _) => warning = Some(format!("theme.toml : couleur inconnue « {k} »")),
+                (false, _) => warning = Some(format!("theme.toml: unknown color \"{k}\"")),
                 (true, None) => {
-                    warning = Some(format!("theme.toml : « {v} » n'est pas au format #rrggbb"))
+                    warning = Some(format!("theme.toml: \"{v}\" is not in #rrggbb format"))
                 }
             }
         }

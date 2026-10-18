@@ -1,4 +1,4 @@
-//! Exécution parallèle bornée d'une matrice de cibles.
+//! Bounded parallel execution of a target matrix.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -10,16 +10,16 @@ use crate::event::{Control, Emitter, EventTx, VmEvent};
 use crate::model::{Outcome, TargetResult, VmSpec};
 use crate::vm::{Runner, Stop};
 
-/// Poignée sur une matrice en cours : contrôle de chaque cible et attente.
+/// Handle on a running matrix: control of each target, and waiting.
 pub struct Matrix {
     pub controls: HashMap<String, mpsc::UnboundedSender<Control>>,
     handles: Vec<JoinHandle<Option<TargetResult>>>,
 }
 
 impl Matrix {
-    /// Lance les cibles, au plus `jobs` à la fois. En mode `interactive`, une
-    /// cible terminée peut être relancée (`Control::Restart`) tant que son
-    /// canal de contrôle reste ouvert.
+    /// Starts the targets, at most `jobs` at a time. In `interactive` mode, a
+    /// finished target can be restarted (`Control::Restart`) as long as its
+    /// control channel stays open.
     pub fn start(
         runner: Runner,
         specs: Vec<VmSpec>,
@@ -47,14 +47,14 @@ impl Matrix {
         Matrix { controls, handles }
     }
 
-    /// Attend la fin de toutes les cibles. Les résultats suivent l'ordre du fichier.
+    /// Waits for every target to finish. Results follow the file order.
     pub async fn wait(self) -> Vec<TargetResult> {
         let _controls = self.controls;
         join(self.handles).await
     }
 
-    /// Ferme les canaux de contrôle : les VM en cours sont tuées et les
-    /// cibles en attente abandonnées.
+    /// Closes the control channels: running VMs are killed and queued targets
+    /// are dropped.
     pub async fn shutdown(self) -> Vec<TargetResult> {
         drop(self.controls);
         join(self.handles).await
@@ -80,7 +80,7 @@ async fn supervise(
     interactive: bool,
 ) -> Option<TargetResult> {
     loop {
-        // Attente d'un slot ; un Kill reçu entre-temps annule la cible.
+        // Wait for a slot; a Kill received meanwhile cancels the target.
         let permit = tokio::select! {
             p = slots.clone().acquire_owned() => p.ok(),
             cmd = ctrl.recv() => match cmd {
@@ -97,7 +97,7 @@ async fn supervise(
             None => {
                 let mut r = TargetResult::new(&spec);
                 r.outcome = Outcome::Killed;
-                r.error = Some("interrompue avant son lancement".into());
+                r.error = Some("interrupted before it started".into());
                 ev.emit(VmEvent::Finished(Box::new(r.clone())));
                 (r, Some(Stop::Kill))
             }
@@ -110,7 +110,7 @@ async fn supervise(
     }
 }
 
-/// Après la fin d'une cible : attend une demande de relance ou la fermeture.
+/// After a target finishes: waits for a restart request or for shutdown.
 async fn wait_restart(ctrl: &mut mpsc::UnboundedReceiver<Control>) -> bool {
     loop {
         match ctrl.recv().await {

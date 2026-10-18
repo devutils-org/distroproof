@@ -1,5 +1,5 @@
-//! distroproof : lance un programme dans des VM qui tournent avec le vrai
-//! noyau de chaque distro cible, et récupère sa sortie.
+//! distroproof: runs a program in VMs booted on the real kernel of each
+//! target distro, and collects its output.
 
 mod config;
 mod dirs;
@@ -30,8 +30,8 @@ use crate::model::{Outcome, VmSpec};
 use crate::progress::{fmt_bytes, Progress};
 use crate::vm::Runner;
 
-/// Lance un programme dans une matrice de VM de distros, chacune avec son
-/// propre noyau.
+/// Runs a program across a matrix of distro VMs, each one on its own
+/// kernel.
 #[derive(Parser, Debug)]
 #[command(version, about)]
 struct Cli {
@@ -41,24 +41,24 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Lance une commande dans une VM et renvoie sa sortie et son code.
+    /// Runs a command in a VM and returns its output and exit code.
     Run(RunArgs),
-    /// Lance toute la matrice décrite dans distroproof.toml.
+    /// Runs the whole matrix described in distroproof.toml.
     Up(UpArgs),
-    /// Valide distroproof.toml sans lancer de VM.
+    /// Validates distroproof.toml without starting any VM.
     Check {
-        /// Fichier de matrice.
+        /// Matrix file.
         #[arg(short, long, default_value = config::DEFAULT_FILE)]
         file: PathBuf,
     },
-    /// Réaffiche un rapport de matrice JSON dans un autre format.
+    /// Renders a JSON matrix report again in another format.
     Report {
-        /// Rapport écrit par `distroproof up --json`.
+        /// Report written by `distroproof up --json`.
         file: PathBuf,
         #[arg(long, value_enum, default_value_t = Format::Text)]
         format: Format,
     },
-    /// Gère le cache des images.
+    /// Manages the image cache.
     Images {
         #[command(subcommand)]
         action: Option<ImagesAction>,
@@ -67,35 +67,35 @@ enum Command {
 
 #[derive(Subcommand, Debug)]
 enum ImagesAction {
-    /// Catalogue et état du cache (défaut).
+    /// Catalog and cache status (default).
     List,
-    /// Télécharge et vérifie des images.
+    /// Downloads and verifies images.
     Pull {
-        /// Images à télécharger (toutes si vide).
+        /// Images to download (all of them if empty).
         names: Vec<String>,
     },
-    /// Vide le cache des images et les exécutions abandonnées.
+    /// Empties the image cache and abandoned runs.
     Prune,
 }
 
 #[derive(Args, Debug, Clone)]
 struct Common {
-    /// Binaire envprobe statique à copier dans l'invité.
+    /// Static envprobe binary to copy into the guest.
     #[arg(long, env = "DISTROPROOF_ENVPROBE")]
     envprobe: Option<PathBuf>,
-    /// N'accède pas au réseau : images du cache uniquement.
+    /// No network access: cached images only.
     #[arg(long)]
     offline: bool,
-    /// Toujours booter sur le disque, sans noyau extrait.
+    /// Always boot from disk, without an extracted kernel.
     #[arg(long)]
     no_direct_boot: bool,
-    /// Garde les répertoires d'exécution (overlay, disques) pour déboguer.
+    /// Keeps the run directories (overlay, disks) for debugging.
     #[arg(long)]
     keep: bool,
-    /// Affichage de la progression sur stderr.
+    /// Progress display on stderr.
     #[arg(long, value_enum, default_value_t = Progress::Text)]
     progress: Progress,
-    /// Relaie aussi la sortie de la commande dans la progression.
+    /// Also relays the command's output in the progress display.
     #[arg(short, long)]
     verbose: bool,
 }
@@ -110,33 +110,33 @@ enum Format {
 
 #[derive(Args, Debug)]
 struct UpArgs {
-    /// Fichier de matrice ; répétable, un workspace de TUI par fichier.
+    /// Matrix file; repeatable, one TUI workspace per file.
     #[arg(short, long, default_value = config::DEFAULT_FILE)]
     file: Vec<PathBuf>,
-    /// Force la TUI (par défaut si stdout est un terminal).
+    /// Forces the TUI (the default when stdout is a terminal).
     #[arg(long, conflicts_with = "no_tui")]
     tui: bool,
-    /// Sortie texte même dans un terminal.
+    /// Text output even in a terminal.
     #[arg(long)]
     no_tui: bool,
-    /// Garde chaque VM allumée après la commande, avec un shell root sur la
-    /// console série (TUI : touche c).
+    /// Keeps each VM up after the command, with a root shell on the serial
+    /// console (TUI: key c).
     #[arg(long)]
     hold: bool,
-    /// Nombre de VM lancées en parallèle (défaut : moitié des cœurs, 8 au plus).
+    /// Number of VMs run in parallel (default: half the cores, 8 at most).
     #[arg(short, long)]
     jobs: Option<usize>,
-    /// Ne lance que ces cibles (noms séparés par des virgules).
+    /// Runs only these targets (comma-separated names).
     #[arg(long, value_delimiter = ',')]
     only: Vec<String>,
-    /// Rapport de matrice JSON.
-    #[arg(long, value_name = "FICHIER")]
+    /// JSON matrix report.
+    #[arg(long, value_name = "FILE")]
     json: Option<PathBuf>,
-    /// Rapport JUnit XML, pour la CI.
-    #[arg(long, value_name = "FICHIER")]
+    /// JUnit XML report, for CI.
+    #[arg(long, value_name = "FILE")]
     junit: Option<PathBuf>,
-    /// Résumé Markdown, pour un commentaire de PR.
-    #[arg(long, value_name = "FICHIER")]
+    /// Markdown summary, for a PR comment.
+    #[arg(long, value_name = "FILE")]
     markdown: Option<PathBuf>,
     #[command(flatten)]
     common: Common,
@@ -144,7 +144,7 @@ struct UpArgs {
 
 #[derive(Args, Debug)]
 struct RunArgs {
-    /// Image cible (voir `distroproof images`).
+    /// Target image (see `distroproof images`).
     #[arg(long, short)]
     target: String,
     #[arg(long, default_value = "1G")]
@@ -153,33 +153,33 @@ struct RunArgs {
     cpus: u32,
     #[arg(long, default_value = "10m")]
     timeout: String,
-    /// Utilisateur qui lance la commande : root ou un compte créé à la volée.
+    /// User that runs the command: root or an account created on the fly.
     #[arg(long, default_value = "root")]
     as_user: String,
-    /// Capabilities accordées à l'utilisateur non root (bpf,perfmon…).
+    /// Capabilities granted to the non-root user (bpf,perfmon…).
     #[arg(long, value_delimiter = ',')]
     caps: Vec<String>,
-    /// Sysctl appliqué avant la commande (clé=valeur), répétable.
-    #[arg(long = "sysctl", value_name = "CLÉ=VALEUR")]
+    /// Sysctl applied before the command (key=value), repeatable.
+    #[arg(long = "sysctl", value_name = "KEY=VALUE")]
     sysctl: Vec<String>,
-    /// Arguments ajoutés à la ligne de commande du noyau.
+    /// Arguments appended to the kernel command line.
     #[arg(long)]
     kernel_cmdline: Option<String>,
-    /// Masque la PMU à l'invité.
+    /// Hides the PMU from the guest.
     #[arg(long)]
     no_pmu: bool,
-    /// Répertoire copié dans l'invité (/distroproof/work), où tourne la commande.
+    /// Directory copied into the guest (/distroproof/work), where the command runs.
     #[arg(long)]
     workdir: Option<PathBuf>,
-    /// Lance aussi envprobe avant la commande et joint le rapport au résultat.
+    /// Also runs envprobe before the command and attaches the report to the result.
     #[arg(long)]
     probe: bool,
-    /// Écrit le résultat complet (JSON) dans ce fichier.
+    /// Writes the full result (JSON) to this file.
     #[arg(long)]
     result: Option<PathBuf>,
     #[command(flatten)]
     common: Common,
-    /// Commande à lancer ; `envprobe` est dans le PATH de l'invité.
+    /// Command to run; `envprobe` is in the guest's PATH.
     #[arg(last = true, required = true)]
     command: Vec<String>,
 }
@@ -200,8 +200,8 @@ async fn main() -> ExitCode {
     })
 }
 
-/// Cherche un envprobe statique : option, puis à côté de distroproof, puis
-/// dans la cible musl du workspace.
+/// Looks for a static envprobe: the option, then next to distroproof, then in
+/// the workspace's musl target.
 fn find_envprobe(explicit: Option<&Path>) -> Result<PathBuf, String> {
     let mut candidates = Vec::new();
     if let Some(p) = explicit {
@@ -228,15 +228,12 @@ fn find_envprobe(explicit: Option<&Path>) -> Result<PathBuf, String> {
             return Ok(c.clone());
         }
         if explicit.is_some() {
-            return Err(format!(
-                "{} n'est pas un binaire x86_64 statique",
-                c.display()
-            ));
+            return Err(format!("{} is not a static x86_64 binary", c.display()));
         }
     }
     Err(
-        "envprobe statique introuvable : `cargo build --release --target \
-         x86_64-unknown-linux-musl -p envprobe` ou --envprobe <chemin>"
+        "static envprobe not found: `cargo build --release --target \
+         x86_64-unknown-linux-musl -p envprobe` or --envprobe <path>"
             .into(),
     )
 }
@@ -257,7 +254,7 @@ fn parse_sysctls(items: &[String]) -> Result<BTreeMap<String, String>, String> {
         .map(|s| {
             s.split_once('=')
                 .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
-                .ok_or_else(|| format!("--sysctl attend clé=valeur, reçu « {s} »"))
+                .ok_or_else(|| format!("--sysctl expects key=value, got \"{s}\""))
         })
         .collect()
 }
@@ -265,19 +262,19 @@ fn parse_sysctls(items: &[String]) -> Result<BTreeMap<String, String>, String> {
 async fn cmd_run(args: RunArgs) -> Result<ExitCode, String> {
     if images::find(&args.target).is_none() {
         return Err(format!(
-            "image inconnue « {} » (connues : {})",
+            "unknown image \"{}\" (known: {})",
             args.target,
             images::names().join(", ")
         ));
     }
     if !config::valid_user(&args.as_user) {
-        return Err(format!("nom d'utilisateur invalide « {} »", args.as_user));
+        return Err(format!("invalid user name \"{}\"", args.as_user));
     }
     for cap in &args.caps {
         config::check_cap(cap)?;
     }
     if !args.caps.is_empty() && args.as_user == "root" {
-        return Err("--caps ne s'applique qu'avec --as-user <non root>".into());
+        return Err("--caps only applies with --as-user <non-root>".into());
     }
     let command = args
         .command
@@ -322,7 +319,7 @@ async fn cmd_run(args: RunArgs) -> Result<ExitCode, String> {
         r = run => r,
         _ = tokio::signal::ctrl_c() => {
             drop(ctrl_tx);
-            eprintln!("distroproof: interrompu");
+            eprintln!("distroproof: interrupted");
             return Ok(ExitCode::from(130));
         }
     };
@@ -331,8 +328,8 @@ async fn cmd_run(args: RunArgs) -> Result<ExitCode, String> {
     let _ = printer.await;
 
     if let Some(path) = &args.result {
-        let json = serde_json::to_string_pretty(&result).expect("sérialisable");
-        std::fs::write(path, json).map_err(|e| format!("{} : {e}", path.display()))?;
+        let json = serde_json::to_string_pretty(&result).expect("serializable");
+        std::fs::write(path, json).map_err(|e| format!("{}: {e}", path.display()))?;
     }
     if let Some(cmd) = &result.command {
         let _ = io::stdout().write_all(cmd.stdout.as_bytes());
@@ -356,7 +353,7 @@ fn cmd_check(path: &Path) -> Result<ExitCode, String> {
     let mut out = io::stdout().lock();
     let _ = writeln!(
         out,
-        "{} : {} cible(s) valides",
+        "{}: {} valid target(s)",
         path.display(),
         cfg.targets.len()
     );
@@ -366,20 +363,20 @@ fn cmd_check(path: &Path) -> Result<ExitCode, String> {
             variants.push(format!("{k}={v}"));
         }
         if let Some(c) = &t.kernel_cmdline {
-            variants.push(format!("cmdline « {c} »"));
+            variants.push(format!("cmdline \"{c}\""));
         }
         if t.user != "root" {
-            variants.push(format!("utilisateur {}", t.user));
+            variants.push(format!("user {}", t.user));
         }
         if !t.caps.is_empty() {
             variants.push(format!("caps {}", t.caps.join(",")));
         }
         if !t.pmu {
-            variants.push("sans PMU".into());
+            variants.push("no PMU".into());
         }
         let _ = writeln!(
             out,
-            "  {:<20} {:<14} {} Mio, {} CPU, timeout {}{}",
+            "  {:<20} {:<14} {} MiB, {} CPU, timeout {}{}",
             t.name,
             t.image,
             t.memory_mib,
@@ -404,7 +401,7 @@ fn write_reports(m: &report::MatrixReport, args: &UpArgs) -> Result<(), String> 
     for (path, format) in outputs {
         if let Some(path) = path {
             std::fs::write(path, render(m, format))
-                .map_err(|e| format!("{} : {e}", path.display()))?;
+                .map_err(|e| format!("{}: {e}", path.display()))?;
         }
     }
     Ok(())
@@ -420,10 +417,10 @@ fn render(m: &report::MatrixReport, format: Format) -> String {
 }
 
 fn cmd_report(path: &Path, format: Format) -> Result<ExitCode, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{} : {e}", path.display()))?;
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let saved: report::MatrixReport =
-        serde_json::from_str(&text).map_err(|e| format!("{} : {e}", path.display()))?;
-    // L'analyse est recalculée : elle profite des améliorations de l'heuristique.
+        serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    // The analysis is recomputed: it benefits from heuristic improvements.
     let mut m = report::MatrixReport::build(saved.targets, saved.config);
     m.generated_at = saved.generated_at;
     let out = match format {
@@ -445,7 +442,7 @@ fn default_jobs() -> usize {
 }
 
 async fn cmd_up(args: UpArgs) -> Result<ExitCode, String> {
-    // Toutes les matrices sont validées avant de lancer la moindre VM.
+    // Every matrix is validated before any VM starts.
     let mut specs: Vec<(VmSpec, usize)> = Vec::new();
     let mut groups = Vec::new();
     for (group, path) in args.file.iter().enumerate() {
@@ -453,7 +450,7 @@ async fn cmd_up(args: UpArgs) -> Result<ExitCode, String> {
         for t in cfg.targets {
             if let Some((_, g)) = specs.iter().find(|(s, _)| s.name == t.name) {
                 return Err(format!(
-                    "cible « {} » définie dans {} et {}",
+                    "target \"{}\" defined in both {} and {}",
                     t.name,
                     args.file[*g].display(),
                     path.display()
@@ -477,7 +474,7 @@ async fn cmd_up(args: UpArgs) -> Result<ExitCode, String> {
             .iter()
             .find(|n| !specs.iter().any(|(s, _)| &s.name == *n))
         {
-            return Err(format!("cible inconnue « {bad} » dans --only"));
+            return Err(format!("unknown target \"{bad}\" in --only"));
         }
         specs.retain(|(s, _)| args.only.contains(&s.name));
     }
@@ -500,9 +497,9 @@ async fn cmd_up(args: UpArgs) -> Result<ExitCode, String> {
         );
         let controls = matrix.controls.clone();
         let ui = tui::run(specs, groups, controls, rx).await;
-        // Quitter la TUI arrête les VM encore allumées.
+        // Quitting the TUI stops the VMs still running.
         let results = matrix.shutdown().await;
-        ui.map_err(|e| format!("TUI : {e}"))?;
+        ui.map_err(|e| format!("TUI: {e}"))?;
         return finish_up(results, &args);
     }
 
@@ -524,7 +521,7 @@ async fn cmd_up(args: UpArgs) -> Result<ExitCode, String> {
     let results = tokio::select! {
         r = &mut wait => r,
         _ = tokio::signal::ctrl_c() => {
-            eprintln!("distroproof: interrompu, arrêt des VM");
+            eprintln!("distroproof: interrupted, stopping the VMs");
             for tx in controls.values() {
                 let _ = tx.send(event::Control::Kill);
             }
@@ -565,16 +562,16 @@ async fn cmd_images(action: ImagesAction) -> Result<ExitCode, String> {
                         "{file} ({}{})",
                         fmt_bytes(e.bytes),
                         if e.direct_kernel {
-                            ", noyau extrait"
+                            ", kernel extracted"
                         } else {
                             ""
                         }
                     ),
-                    None => "absente du cache".into(),
+                    None => "not cached".into(),
                 };
                 let _ = writeln!(out, "{:<width$}  {:<45}  {state}", e.name, e.description);
             }
-            let _ = writeln!(out, "\ncache : {}", dirs::images().display());
+            let _ = writeln!(out, "\ncache: {}", dirs::images().display());
             Ok(ExitCode::SUCCESS)
         }
         ImagesAction::Pull { names } => {
@@ -593,7 +590,7 @@ async fn cmd_images(action: ImagesAction) -> Result<ExitCode, String> {
                 tasks.push(tokio::spawn(async move {
                     let r = store.ensure(&name, &ev).await;
                     if let Err(e) = &r {
-                        ev.info(format!("erreur : {e}"));
+                        ev.info(format!("error: {e}"));
                     }
                     r.is_ok()
                 }));
@@ -615,9 +612,9 @@ async fn cmd_images(action: ImagesAction) -> Result<ExitCode, String> {
             let dir = dirs::images();
             let freed: u64 = images::cache_status().iter().map(|e| e.bytes).sum();
             if dir.exists() {
-                std::fs::remove_dir_all(&dir).map_err(|e| format!("{} : {e}", dir.display()))?;
+                std::fs::remove_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
             }
-            println!("{} libérés ({})", fmt_bytes(freed), dir.display());
+            println!("{} freed ({})", fmt_bytes(freed), dir.display());
             Ok(ExitCode::SUCCESS)
         }
     }

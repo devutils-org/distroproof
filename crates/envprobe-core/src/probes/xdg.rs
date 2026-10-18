@@ -1,4 +1,4 @@
-//! Variables XDG définies et valeurs effectives.
+//! XDG variables that are set, and effective values.
 
 use std::env;
 
@@ -24,9 +24,9 @@ pub fn probe() -> Section {
     ];
     for (name, default) in vars {
         let value = match (env::var(name), default) {
-            (Ok(v), _) if !v.is_empty() => Value::ok(format!("{v} (défini)")),
-            (_, Some(d)) => Value::ok(format!("{d} (défaut)")),
-            (_, None) => Value::ok("non défini"),
+            (Ok(v), _) if !v.is_empty() => Value::ok(format!("{v} (set)")),
+            (_, Some(d)) => Value::ok(format!("{d} (default)")),
+            (_, None) => Value::ok("not set"),
         };
         s.push(name, value);
     }

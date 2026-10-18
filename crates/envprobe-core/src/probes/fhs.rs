@@ -1,4 +1,4 @@
-//! Arborescence : merged-usr, /lib64, multiarch Debian.
+//! Filesystem layout: merged-usr, /lib64, Debian multiarch.
 
 use std::fs;
 use std::path::Path;
@@ -17,7 +17,7 @@ pub fn probe() -> Section {
                 }
                 Value::ok(format!("→ {target}"))
             }
-            Err(_) if Path::new(dir).is_dir() => Value::ok("répertoire"),
+            Err(_) if Path::new(dir).is_dir() => Value::ok("directory"),
             Err(e) => util::io_value(&e, Path::new(dir)),
         };
         s.push(dir, value);
@@ -25,16 +25,16 @@ pub fn probe() -> Section {
     s.push(
         "merged_usr",
         Value::ok(match merged {
-            3 => "oui",
-            0 => "non",
-            _ => "partiel",
+            3 => "yes",
+            0 => "no",
+            _ => "partial",
         }),
     );
     s.push(
         "/lib64",
         match fs::read_link("/lib64") {
             Ok(target) => Value::ok(format!("→ {}", target.display())),
-            Err(_) if Path::new("/lib64").is_dir() => Value::ok("répertoire"),
+            Err(_) if Path::new("/lib64").is_dir() => Value::ok("directory"),
             Err(_) => Value::ok("absent"),
         },
     );
@@ -42,9 +42,9 @@ pub fn probe() -> Section {
     s.push(
         "multiarch",
         Value::ok(if Path::new(&multiarch).is_dir() {
-            format!("oui ({multiarch})")
+            format!("yes ({multiarch})")
         } else {
-            "non".to_string()
+            "no".to_string()
         }),
     );
     let lib_dirs: Vec<String> = [

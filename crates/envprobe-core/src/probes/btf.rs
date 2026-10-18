@@ -1,4 +1,4 @@
-//! BTF du noyau et des modules.
+//! Kernel and module BTF.
 
 use std::fs;
 use std::path::Path;
@@ -11,7 +11,7 @@ pub fn probe() -> Section {
     s.push(
         "vmlinux",
         match fs::metadata(vmlinux) {
-            Ok(m) => Value::ok(format!("présent, {} octets", m.len())),
+            Ok(m) => Value::ok(format!("present, {} bytes", m.len())),
             Err(e) => util::io_value(&e, vmlinux),
         },
     );

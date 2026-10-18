@@ -1,4 +1,4 @@
-//! Exécution d'une cible : image, disques, boot QEMU, agent, résultat.
+//! Running one target: image, disks, QEMU boot, agent, result.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,23 +15,23 @@ use crate::metrics::Sampler;
 use crate::model::{Outcome, StageResult, TargetResult, VmSpec};
 use crate::qemu::{self, KernelBoot, Machine, Qmp, RunDir};
 
-/// Délai laissé à QEMU pour s'arrêter seul après la fin de l'agent.
+/// Time given to QEMU to stop on its own after the agent finishes.
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(15);
-/// Taille de la fin de console gardée dans le résultat.
+/// Size of the console tail kept in the result.
 const CONSOLE_TAIL: usize = 16 * 1024;
 
 #[derive(Clone)]
 pub struct Runner {
     pub store: Store,
-    /// Binaire envprobe statique copié dans chaque invité.
+    /// Static envprobe binary copied into each guest.
     pub envprobe: PathBuf,
-    /// Boot direct sur le noyau extrait de l'image quand il est disponible.
+    /// Direct boot on the kernel extracted from the image, when available.
     pub direct_boot: bool,
-    /// Garder les répertoires d'exécution pour déboguer.
+    /// Keep the run directories for debugging.
     pub keep: bool,
 }
 
-/// Fin d'exécution demandée de l'extérieur.
+/// End of run requested from outside.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stop {
     Kill,
@@ -39,8 +39,8 @@ pub enum Stop {
 }
 
 impl Runner {
-    /// Lance une cible et renvoie son résultat ; ne panique jamais sur une
-    /// erreur d'environnement (image absente, QEMU qui ne démarre pas…).
+    /// Runs a target and returns its result; never panics on an environment
+    /// error (missing image, QEMU failing to start…).
     pub async fn run(
         &self,
         spec: &VmSpec,
@@ -78,8 +78,8 @@ impl Runner {
 
         let mut kernel = image.direct_kernel();
         if spec.kernel_cmdline.is_some() && kernel.is_none() {
-            // Le noyau doit être extrait une fois pour pouvoir modifier sa
-            // ligne de commande : boot de préparation sans étape utilisateur.
+            // The kernel must be extracted once before its command line can be
+            // changed: preparation boot with no user stage.
             let _guard = self
                 .store
                 .exclusive(&format!("{}#kernel", image.name))
@@ -98,9 +98,9 @@ impl Runner {
                 kernel = image.direct_kernel();
                 if kernel.is_none() {
                     return Err(format!(
-                        "noyau non extrait de {} : kernel_cmdline impossible ({})",
+                        "kernel not extracted from {}: kernel_cmdline impossible ({})",
                         image.file,
-                        prep.warnings.join(" ; ")
+                        prep.warnings.join("; ")
                     ));
                 }
             }
@@ -163,13 +163,13 @@ impl Runner {
         }
         fs::File::create(&output)
             .and_then(|f| f.set_len(guest::OUTPUT_DISK_BYTES))
-            .map_err(|e| format!("{} : {e}", output.display()))?;
+            .map_err(|e| format!("{}: {e}", output.display()))?;
 
         let cmdline;
         let kernel_boot = match &kernel {
             Some(k) => {
-                // L'attente de synchro NTP (Arch) bloque cloud-final ~40 s pour
-                // rien : l'horloge de la VM vient déjà de l'hôte.
+                // Waiting for NTP sync (Arch) blocks cloud-final for ~40 s for
+                // nothing: the VM clock already comes from the host.
                 cmdline = format!(
                     "{} console=ttyS0,115200 panic=-1 \
                      systemd.mask=systemd-time-wait-sync.service {}",
@@ -185,18 +185,18 @@ impl Runner {
             None => None,
         };
         result.direct_kernel = kernel_boot.is_some();
-        // Le boot direct se passe de firmware ; le boot disque des images
-        // UEFI demande OVMF et une copie de ses variables.
+        // Direct boot needs no firmware; booting UEFI images from disk needs
+        // OVMF and a copy of its variables.
         let vars = rd.path("efivars.fd");
         let ovmf = if image.uefi && kernel_boot.is_none() {
             let ovmf = qemu::find_ovmf().ok_or_else(|| {
                 format!(
-                    "{} démarre en UEFI : installez OVMF (edk2-ovmf) ou définissez \
-                     DISTROPROOF_OVMF_CODE et DISTROPROOF_OVMF_VARS",
+                    "{} boots with UEFI: install OVMF (edk2-ovmf) or set \
+                     DISTROPROOF_OVMF_CODE and DISTROPROOF_OVMF_VARS",
                     image.name
                 )
             })?;
-            fs::copy(&ovmf.vars, &vars).map_err(|e| format!("{} : {e}", ovmf.vars.display()))?;
+            fs::copy(&ovmf.vars, &vars).map_err(|e| format!("{}: {e}", ovmf.vars.display()))?;
             Some(ovmf)
         } else {
             None
@@ -224,10 +224,10 @@ impl Runner {
             .stderr(Stdio::piped())
             .kill_on_drop(true)
             .spawn()
-            .map_err(|e| format!("lancement de QEMU impossible : {e}"))?;
+            .map_err(|e| format!("cannot start QEMU: {e}"))?;
         let pid = child.id().unwrap_or(0);
         let stderr_task = {
-            let mut stderr = child.stderr.take().expect("stderr capturé");
+            let mut stderr = child.stderr.take().expect("stderr captured");
             tokio::spawn(async move {
                 let mut s = String::new();
                 let _ = (&mut stderr).take(64 * 1024).read_to_string(&mut s).await;
@@ -235,7 +235,7 @@ impl Runner {
             })
         };
 
-        // Connexion aux sockets pendant que la VM est en pause (-S).
+        // Connect to the sockets while the VM is paused (-S).
         let sockets = async {
             let qmp = Qmp::connect(&qmp_path).await?;
             let console = qemu::connect(&console_path, Duration::from_secs(5)).await?;
@@ -247,7 +247,7 @@ impl Runner {
             status = child.wait() => {
                 let err = stderr_task.await.unwrap_or_default();
                 return Err(format!(
-                    "QEMU s'est arrêté au démarrage ({}) : {}",
+                    "QEMU stopped during startup ({}): {}",
                     status.map(|s| s.to_string()).unwrap_or_default(),
                     err.trim()
                 ));
@@ -305,8 +305,8 @@ impl Runner {
                             match handle_agent_line(&line, ev, result, boot_start, &mut current_stage) {
                                 AgentMsg::Done => {
                                     done = true;
-                                    // Le disque de sortie est complet (sync) : on le lit
-                                    // sans attendre l'arrêt de la VM.
+                                    // The output disk is complete (sync): read it
+                                    // without waiting for the VM to stop.
                                     let res = read_output(&output).await;
                                     if let Ok(out) = &res {
                                         if extract_kernel {
@@ -372,7 +372,7 @@ impl Runner {
                         if let Some(at) = paused_at {
                             if qmp.execute("cont", None).await.is_ok() {
                                 paused_at = None;
-                                // Le temps passé en pause ne compte pas dans le timeout.
+                                // Time spent paused does not count toward the timeout.
                                 let next = deadline.deadline() + at.elapsed();
                                 deadline.as_mut().reset(next);
                                 ev.emit(VmEvent::Resumed);
@@ -390,7 +390,7 @@ impl Runner {
                     Some(Control::ConsoleInput(bytes)) => {
                         let _ = con_w.write_all(&bytes).await;
                     }
-                    // Plus aucun consommateur : Ctrl+C ou fin de la TUI.
+                    // No consumers left: Ctrl+C or the TUI exited.
                     None => {
                         stop = Some(Stop::Kill);
                         let _ = child.start_kill();
@@ -412,8 +412,8 @@ impl Runner {
         result.console_tail = tail_text(&console_tail, 60);
 
         if let Some(res) = collected {
-            // L'agent a fini : le résultat est acquis, même si la VM a été
-            // tuée ensuite (VM gardée avec --hold).
+            // The agent finished: the result stands, even if the VM was killed
+            // afterwards (VM kept up with --hold).
             res?;
             return Ok(BootEnd {
                 stop: stop.filter(|s| *s == Stop::Restart),
@@ -427,30 +427,30 @@ impl Runner {
         if timed_out {
             result.outcome = Outcome::TimedOut;
             let phase = match (result.boot_ms, current_stage) {
-                (None, _) => "pendant le boot".to_string(),
-                (Some(_), Some(stage)) => format!("pendant l'étape {}", stage.label()),
-                (Some(_), None) => "après le boot".to_string(),
+                (None, _) => "during boot".to_string(),
+                (Some(_), Some(stage)) => format!("during the {} stage", stage.label()),
+                (Some(_), None) => "after boot".to_string(),
             };
             result.error = Some(format!(
-                "timeout de {} {phase}",
+                "timed out after {} {phase}",
                 crate::config::format_duration(spec.timeout)
             ));
             return Ok(BootEnd::default());
         }
         if let Some(msg) = fatal {
-            return Err(format!("agent : {msg}"));
+            return Err(format!("agent: {msg}"));
         }
         let status = exit_status.map(|s| s.to_string()).unwrap_or_default();
         let detail = qemu_stderr.trim();
         Err(if result.boot_ms.is_none() {
-            format!("la VM s'est arrêtée sans que l'agent réponde ({status}) {detail}")
+            format!("the VM stopped before the agent answered ({status}) {detail}")
         } else {
-            format!("la VM s'est arrêtée avant la fin de l'agent ({status}) {detail}")
+            format!("the VM stopped before the agent finished ({status}) {detail}")
         })
     }
 }
 
-/// Fin d'un boot : arrêt demandé, et résultat déjà publié (VM gardée).
+/// End of a boot: requested stop, and result already published (VM kept up).
 #[derive(Debug, Default)]
 struct BootEnd {
     stop: Option<Stop>,
@@ -471,9 +471,9 @@ async fn read_output(path: &Path) -> Result<GuestOutput, String> {
     let out = tokio::task::spawn_blocking(move || GuestOutput::read(&path))
         .await
         .map_err(|e| e.to_string())?
-        .map_err(|e| format!("disque de sortie illisible : {e}"))?;
+        .map_err(|e| format!("output disk unreadable: {e}"))?;
     if out.is_empty() {
-        return Err("disque de sortie vide".into());
+        return Err("output disk empty".into());
     }
     Ok(out)
 }
@@ -491,8 +491,8 @@ fn handle_agent_line(
     boot_start: Instant,
     current: &mut Option<Stage>,
 ) -> AgentMsg {
-    // Le firmware (OVMF) écrit aussi sur COM2 avant l'agent : un message de
-    // contrôle peut arriver précédé d'octets parasites.
+    // The firmware (OVMF) also writes to COM2 before the agent: a control
+    // message can arrive preceded by stray bytes.
     let line = match line.find("@ ") {
         Some(i) if i > 0 && !line.starts_with("> ") && !line.starts_with("! ") => &line[i..],
         _ => line,
@@ -543,7 +543,7 @@ fn handle_agent_line(
             }
             "WARN" => {
                 result.warnings.push(rest.to_string());
-                ev.info(format!("invité : {rest}"));
+                ev.info(format!("guest: {rest}"));
             }
             "DONE" => return AgentMsg::Done,
             "FATAL" => return AgentMsg::Fatal(rest.to_string()),
@@ -569,7 +569,7 @@ fn collect(out: &GuestOutput, spec: &VmSpec, prepare_only: bool, result: &mut Ta
         match serde_json::from_slice(json) {
             Ok(report) => result.envprobe = Some(report),
             Err(e) => result.warnings.push(format!(
-                "rapport envprobe illisible : {e} ({})",
+                "envprobe report unreadable: {e} ({})",
                 out.text("envprobe.err").unwrap_or_default().trim()
             )),
         }
@@ -581,7 +581,7 @@ fn collect(out: &GuestOutput, spec: &VmSpec, prepare_only: bool, result: &mut Ta
     result.outcome = match (&result.command, setup_failed) {
         (_, true) => {
             result.error = Some(format!(
-                "setup en échec (code {})",
+                "setup failed (code {})",
                 result
                     .setup
                     .as_ref()
@@ -596,7 +596,7 @@ fn collect(out: &GuestOutput, spec: &VmSpec, prepare_only: bool, result: &mut Ta
     };
 }
 
-/// Range noyau et initramfs extraits par l'agent, de façon atomique.
+/// Stores the kernel and initramfs extracted by the agent, atomically.
 fn save_kernel(out: &GuestOutput, dir: &Path, ev: &Emitter) {
     let (Some(kernel), Some(cmdline)) = (out.get("kernel/vmlinuz"), out.get("kernel/cmdline"))
     else {
@@ -620,17 +620,17 @@ fn save_kernel(out: &GuestOutput, dir: &Path, ev: &Emitter) {
     })();
     match res {
         Ok(()) => ev.info(format!(
-            "noyau extrait ({}), boot direct aux prochaines exécutions",
+            "kernel extracted ({}), direct boot on the next runs",
             images::clean_cmdline(&String::from_utf8_lossy(cmdline))
         )),
         Err(e) => {
             let _ = fs::remove_dir_all(&tmp);
-            ev.info(format!("noyau extrait non sauvegardé : {e}"));
+            ev.info(format!("extracted kernel not saved: {e}"));
         }
     }
 }
 
-/// Dernières lignes de la console, sans séquences d'échappement.
+/// Last lines of the console, without escape sequences.
 pub fn tail_text(bytes: &[u8], lines: usize) -> String {
     let text = strip_ansi(&String::from_utf8_lossy(bytes));
     let all: Vec<&str> = text

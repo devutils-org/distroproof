@@ -1,6 +1,6 @@
-//! Non-régression sur des rapports réels : schéma publié, désérialisation, diff.
+//! Regression tests on real reports: published schema, deserialization, diff.
 //!
-//! Régénérer le schéma : `UPDATE_SCHEMA=1 cargo test -p envprobe-core --test reports`.
+//! Regenerate the schema: `UPDATE_SCHEMA=1 cargo test -p envprobe-core --test reports`.
 
 use std::path::Path;
 
@@ -33,14 +33,14 @@ const FIXTURES: &[(&str, &str)] = &[
 
 fn load(name: &str) -> Report {
     let text = FIXTURES.iter().find(|(n, _)| *n == name).unwrap().1;
-    serde_json::from_str(text).unwrap_or_else(|e| panic!("{name} : {e}"))
+    serde_json::from_str(text).unwrap_or_else(|e| panic!("{name}: {e}"))
 }
 
 fn value<'a>(report: &'a Report, section: &str, key: &str) -> &'a Value {
     report
         .section(section)
         .and_then(|s| s.get(key))
-        .unwrap_or_else(|| panic!("{section}.{key} absent"))
+        .unwrap_or_else(|| panic!("{section}.{key} missing"))
 }
 
 #[test]
@@ -49,10 +49,11 @@ fn published_schema_is_up_to_date() {
     if std::env::var_os("UPDATE_SCHEMA").is_some() {
         std::fs::write(SCHEMA_PATH, &generated).unwrap();
     }
-    let published = std::fs::read_to_string(Path::new(SCHEMA_PATH)).expect("schéma publié absent");
+    let published =
+        std::fs::read_to_string(Path::new(SCHEMA_PATH)).expect("published schema missing");
     assert_eq!(
         published, generated,
-        "schéma périmé : relancer avec UPDATE_SCHEMA=1"
+        "stale schema: rerun with UPDATE_SCHEMA=1"
     );
 }
 
@@ -60,7 +61,7 @@ fn published_schema_is_up_to_date() {
 fn fixtures_and_live_report_validate_against_schema() {
     let schema: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(SCHEMA_PATH).unwrap()).unwrap();
-    let validator = jsonschema::validator_for(&schema).expect("schéma valide");
+    let validator = jsonschema::validator_for(&schema).expect("valid schema");
     let live = serde_json::to_value(envprobe_core::probe(&[])).unwrap();
     let mut docs: Vec<(&str, serde_json::Value)> = FIXTURES
         .iter()
@@ -69,7 +70,7 @@ fn fixtures_and_live_report_validate_against_schema() {
     docs.push(("live", live));
     for (name, doc) in &docs {
         let errors: Vec<String> = validator.iter_errors(doc).map(|e| e.to_string()).collect();
-        assert!(errors.is_empty(), "{name} : {errors:?}");
+        assert!(errors.is_empty(), "{name}: {errors:?}");
     }
     let broken = serde_json::json!({"schema_version": 1, "envprobe_version": "x", "sections": [
         {"name": "k", "entries": [{"key": "a", "status": "maybe", "value": "v", "privileged": false}]}
@@ -105,7 +106,7 @@ fn host_vs_alpine_differs_in_userspace_not_kernel() {
     assert!(changed("packages", "managers"));
     assert!(
         d.iter().all(|s| s.name() != "kernel"),
-        "même noyau, aucune différence attendue"
+        "same kernel, no difference expected"
     );
     assert!(d.iter().all(|s| s.name() != "btf"));
     assert_eq!(value(&alpine, "libc", "kind"), &Value::ok("musl"));
@@ -124,7 +125,7 @@ fn debian_rootfs_report() {
     assert!(value(&debian, "fhs", "multiarch")
         .as_ok()
         .unwrap()
-        .starts_with("oui"));
+        .starts_with("yes"));
     assert_eq!(value(&debian, "shell", "sh"), &Value::ok("/usr/bin/dash"));
 }
 
@@ -133,8 +134,8 @@ fn user_vs_root_differs_on_privileges_only() {
     let user = load("archarm-orbstack-user");
     let root = load("archarm-orbstack-root");
     assert_eq!(value(&user, "bpf", "syscall"), &Value::denied("EPERM"));
-    assert_eq!(value(&root, "bpf", "syscall"), &Value::ok("disponible"));
-    assert_eq!(value(&root, "privileges", "CAP_BPF"), &Value::ok("oui"));
+    assert_eq!(value(&root, "bpf", "syscall"), &Value::ok("available"));
+    assert_eq!(value(&root, "privileges", "CAP_BPF"), &Value::ok("yes"));
     for s in diff(&user, &root) {
         assert!(
             [
@@ -147,7 +148,7 @@ fn user_vs_root_differs_on_privileges_only() {
                 "xdg"
             ]
             .contains(&s.name()),
-            "section inattendue : {}",
+            "unexpected section: {}",
             s.name()
         );
     }
@@ -159,6 +160,6 @@ fn user_namespace_is_reported_in_rootfs() {
     assert!(value(&alpine, "privileges", "user_namespace")
         .as_ok()
         .unwrap()
-        .starts_with("non initial"));
+        .starts_with("non-initial"));
     assert_eq!(value(&alpine, "bpf", "syscall"), &Value::denied("EPERM"));
 }

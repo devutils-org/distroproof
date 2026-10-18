@@ -35,8 +35,8 @@ pub(crate) fn cap_eff() -> Option<u64> {
     self_status().ok()?.cap_eff()
 }
 
-/// Vrai dans le user namespace initial. Ailleurs, les capabilities ne valent
-/// que dans le namespace : CAP_BPF affiché n'autorise pas `bpf()`.
+/// True in the initial user namespace. Elsewhere, capabilities only apply
+/// inside the namespace: a CAP_BPF shown here does not allow `bpf()`.
 pub(crate) fn initial_user_ns() -> Option<bool> {
     let map = fs::read_to_string("/proc/self/uid_map").ok()?;
     Some(crate::parse::status::is_initial_uid_map(&map))
@@ -60,7 +60,7 @@ pub fn probe() -> Section {
             return s;
         }
     };
-    let missing = |field: &str| Value::unavailable(format!("champ {field} absent"));
+    let missing = |field: &str| Value::unavailable(format!("field {field} missing"));
     match status.uids() {
         Some(ids) => {
             s.push_privileged("uid", Value::ok(ids[0].to_string()));
@@ -77,7 +77,7 @@ pub fn probe() -> Section {
             for (name, bit) in CAPS {
                 s.push_privileged(
                     *name,
-                    Value::ok(if has_cap(mask, *bit) { "oui" } else { "non" }),
+                    Value::ok(if has_cap(mask, *bit) { "yes" } else { "no" }),
                 );
             }
         }
@@ -87,16 +87,16 @@ pub fn probe() -> Section {
         "user_namespace",
         match initial_user_ns() {
             Some(true) => Value::ok("initial"),
-            Some(false) => Value::ok("non initial (capabilities limitées au namespace)"),
-            None => Value::unavailable("/proc/self/uid_map illisible"),
+            Some(false) => Value::ok("non-initial (capabilities limited to the namespace)"),
+            None => Value::unavailable("/proc/self/uid_map unreadable"),
         },
     );
     s.push_privileged(
         "seccomp",
         match status.seccomp() {
-            Some(0) => Value::ok("désactivé"),
+            Some(0) => Value::ok("disabled"),
             Some(1) => Value::ok("strict"),
-            Some(2) => Value::ok("filtre"),
+            Some(2) => Value::ok("filter"),
             Some(n) => Value::ok(n.to_string()),
             None => missing("Seccomp"),
         },
@@ -105,7 +105,7 @@ pub fn probe() -> Section {
         "no_new_privs",
         status
             .no_new_privs()
-            .map(|b| Value::ok(if b { "oui" } else { "non" }))
+            .map(|b| Value::ok(if b { "yes" } else { "no" }))
             .unwrap_or_else(|| missing("NoNewPrivs")),
     );
     s

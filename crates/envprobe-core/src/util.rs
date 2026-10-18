@@ -1,4 +1,4 @@
-//! Petites aides partagées par les sondes.
+//! Small helpers shared by the probes.
 
 use std::fs;
 use std::io;
@@ -6,20 +6,20 @@ use std::path::Path;
 
 use crate::Value;
 
-/// Convertit une erreur d'E/S en valeur de rapport.
+/// Turns an I/O error into a report value.
 pub(crate) fn io_value(err: &io::Error, path: &Path) -> Value {
     match err.kind() {
-        io::ErrorKind::NotFound => Value::unavailable(format!("{} absent", path.display())),
+        io::ErrorKind::NotFound => Value::unavailable(format!("{} missing", path.display())),
         io::ErrorKind::PermissionDenied => Value::denied(format!(
-            "{} : {}",
+            "{}: {}",
             errno_name(err.raw_os_error().unwrap_or(libc::EACCES)),
             path.display()
         )),
-        _ => Value::unavailable(format!("{} : {err}", path.display())),
+        _ => Value::unavailable(format!("{}: {err}", path.display())),
     }
 }
 
-/// Lit un fichier texte et retire les blancs en bordure.
+/// Reads a text file and trims surrounding whitespace.
 pub(crate) fn read_trimmed(path: impl AsRef<Path>) -> Result<String, Value> {
     let path = path.as_ref();
     fs::read_to_string(path)
@@ -27,12 +27,12 @@ pub(crate) fn read_trimmed(path: impl AsRef<Path>) -> Result<String, Value> {
         .map_err(|e| io_value(&e, path))
 }
 
-/// Comme [`read_trimmed`], mais renvoie directement une [`Value`].
+/// Like [`read_trimmed`], but returns a [`Value`] directly.
 pub(crate) fn read_value(path: impl AsRef<Path>) -> Value {
     read_trimmed(path).map_or_else(|v| v, Value::Ok)
 }
 
-/// Résultat d'un syscall en échec : EPERM et EACCES sont des refus, le reste une indisponibilité.
+/// Result of a failed syscall: EPERM and EACCES are denials, anything else is unavailability.
 pub(crate) fn errno_value(errno: i32) -> Value {
     match errno {
         libc::EPERM | libc::EACCES => Value::denied(errno_name(errno)),
@@ -67,7 +67,7 @@ pub(crate) fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
     !needle.is_empty() && haystack.windows(needle.len()).any(|w| w == needle)
 }
 
-/// Triplet multiarch Debian correspondant à l'architecture de la sonde.
+/// Debian multiarch triplet matching the probe's architecture.
 pub(crate) fn multiarch_triplet() -> String {
     format!("{}-linux-gnu", std::env::consts::ARCH)
 }

@@ -1,7 +1,8 @@
-//! libc du système : glibc ou musl, et sa version.
+//! System libc: glibc or musl, and its version.
 //!
-//! La sonde est elle-même liée statiquement à musl, `gnu_get_libc_version()`
-//! n'est donc jamais disponible : on lit l'interpréteur ELF de `/bin/sh`.
+//! The probe itself is statically linked against musl, so
+//! `gnu_get_libc_version()` is never available: we read the ELF interpreter
+//! of `/bin/sh` instead.
 
 use std::fs;
 use std::path::Path;
@@ -23,12 +24,12 @@ pub fn probe() -> Section {
         }
     };
     let Some(interp) = interp else {
-        s.push("interpreter", Value::ok("aucun (/bin/sh statique)"));
+        s.push("interpreter", Value::ok("none (static /bin/sh)"));
         s.push(
             "kind",
-            Value::unavailable("/bin/sh statique, libc non déterminable"),
+            Value::unavailable("static /bin/sh, libc cannot be determined"),
         );
-        s.push("version", Value::unavailable("/bin/sh statique"));
+        s.push("version", Value::unavailable("static /bin/sh"));
         return s;
     };
     s.push("interpreter", Value::ok(interp.as_str()));
@@ -39,8 +40,10 @@ pub fn probe() -> Section {
             match fs::read_to_string("/lib/apk/db/installed") {
                 Ok(db) => libc_version::musl_version_from_apk(&db)
                     .map(Value::ok)
-                    .unwrap_or_else(|| Value::unavailable("paquet musl absent de la base apk")),
-                Err(_) => Value::unavailable("pas de base apk pour lire la version de musl"),
+                    .unwrap_or_else(|| {
+                        Value::unavailable("musl package missing from the apk database")
+                    }),
+                Err(_) => Value::unavailable("no apk database to read the musl version from"),
             },
         );
     } else if interp.contains("ld-linux") || interp.contains("ld64.so") {
@@ -49,9 +52,9 @@ pub fn probe() -> Section {
     } else {
         s.push(
             "kind",
-            Value::unavailable(format!("interpréteur inconnu : {interp}")),
+            Value::unavailable(format!("unknown interpreter: {interp}")),
         );
-        s.push("version", Value::unavailable("libc inconnue"));
+        s.push("version", Value::unavailable("unknown libc"));
     }
     s
 }
@@ -79,5 +82,5 @@ fn glibc_version(interp: &str) -> Value {
             }
         }
     }
-    Value::unavailable("libc.so.6 introuvable ou sans chaîne de version")
+    Value::unavailable("libc.so.6 not found or without a version string")
 }

@@ -1,6 +1,6 @@
-//! Sortie de `ldconfig -p`.
+//! Output of `ldconfig -p`.
 
-/// Paires (soname, chemin) dans l'ordre de la sortie.
+/// (soname, path) pairs in output order.
 pub fn parse(text: &str) -> Vec<(String, String)> {
     text.lines()
         .filter_map(|line| {

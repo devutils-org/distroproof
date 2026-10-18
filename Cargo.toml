@@ -6,7 +6,7 @@ members = ["crates/envprobe-core", "crates/envprobe", "crates/distroproof"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/moha-bekh/distroproof"
+repository = "https://github.com/devutils-org/distroproof"
 
 [workspace.dependencies]
 envprobe-core = { path = "crates/envprobe-core" }
@@ -25,7 +25,7 @@ toml = "1"
 tui-term = "0.3"
 vt100 = "0.16"
 
-# Le hachage des images (plusieurs centaines de Mio) reste rapide en debug.
+# Keeps image hashing (several hundred MiB) fast in debug builds.
 [profile.dev.package.sha2]
 opt-level = 3
 

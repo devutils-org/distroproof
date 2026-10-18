@@ -34,8 +34,8 @@ fn selinux() -> Value {
 
 fn apparmor() -> Value {
     match util::read_trimmed("/sys/module/apparmor/parameters/enabled") {
-        Ok(v) if v == "Y" => Value::ok("activé"),
-        Ok(_) => Value::ok("désactivé"),
+        Ok(v) if v == "Y" => Value::ok("enabled"),
+        Ok(_) => Value::ok("disabled"),
         Err(Value::Unavailable(_)) => Value::ok("absent"),
         Err(v) => v,
     }
@@ -47,7 +47,7 @@ fn apparmor_profiles() -> Value {
         Ok(text) => {
             let total = text.lines().count();
             let enforce = text.lines().filter(|l| l.ends_with("(enforce)")).count();
-            Value::ok(format!("{total} profils, {enforce} en enforce"))
+            Value::ok(format!("{total} profiles, {enforce} in enforce mode"))
         }
         Err(e) => util::io_value(&e, path),
     }
@@ -62,18 +62,14 @@ fn lockdown() -> Value {
 
 fn secure_boot() -> Value {
     if !Path::new("/sys/firmware/efi").exists() {
-        return Value::ok("non (démarrage non EFI)");
+        return Value::ok("no (non-EFI boot)");
     }
     match fs::read(SECURE_BOOT_VAR) {
-        // 4 octets d'attributs, puis la valeur.
-        Ok(data) if data.len() >= 5 => Value::ok(if data[4] == 1 {
-            "activé"
-        } else {
-            "désactivé"
-        }),
-        Ok(_) => Value::unavailable("variable SecureBoot tronquée"),
+        // 4 bytes of attributes, then the value.
+        Ok(data) if data.len() >= 5 => Value::ok(if data[4] == 1 { "enabled" } else { "disabled" }),
+        Ok(_) => Value::unavailable("SecureBoot variable truncated"),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            Value::ok("désactivé (variable absente)")
+            Value::ok("disabled (variable missing)")
         }
         Err(e) => util::io_value(&e, Path::new(SECURE_BOOT_VAR)),
     }
