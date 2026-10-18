@@ -78,19 +78,41 @@ pub fn find_ovmf() -> Option<Ovmf> {
     })
 }
 
-/// Throwaway qcow2 overlay on top of the base image, which stays untouched.
+/// Room added to every overlay, beyond the base image's own size.
+///
+/// A cloud image's root is cut to its contents: Alpine's is 182 MiB with 21
+/// free, too little for a payload of 20 MiB and what its setup installs. The
+/// overlay is sparse, so the room costs nothing until written, and cloud-init's
+/// growpart and resizefs extend the root partition into it on first boot.
+const OVERLAY_GROWTH: &str = "+4G";
+
+/// Throwaway qcow2 overlay on top of the base image, which stays untouched,
+/// [`OVERLAY_GROWTH`] larger than it.
 pub async fn create_overlay(base: &Path, overlay: &Path) -> Result<(), String> {
-    let out = Command::new(qemu_img_binary())
+    let create = Command::new(qemu_img_binary())
         .args(["create", "-q", "-f", "qcow2", "-F", "qcow2", "-b"])
         .arg(base)
         .arg(overlay)
         .output()
         .await
         .map_err(|e| format!("qemu-img not found: {e}"))?;
-    if !out.status.success() {
+    if !create.status.success() {
         return Err(format!(
             "qemu-img create: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
+            String::from_utf8_lossy(&create.stderr).trim()
+        ));
+    }
+    let resize = Command::new(qemu_img_binary())
+        .args(["resize", "-q", "-f", "qcow2"])
+        .arg(overlay)
+        .arg(OVERLAY_GROWTH)
+        .output()
+        .await
+        .map_err(|e| format!("qemu-img not found: {e}"))?;
+    if !resize.status.success() {
+        return Err(format!(
+            "qemu-img resize: {}",
+            String::from_utf8_lossy(&resize.stderr).trim()
         ));
     }
     Ok(())

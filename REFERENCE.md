@@ -134,8 +134,10 @@ that only boot with UEFI. Binaries can be chosen with `DISTROPROOF_QEMU`,
 | `debian-10`, `debian-11`, `debian-12`, `debian-13` | 4.19, 5.10, 6.1, 6.12 | 4.19 without BTF; 13 boots with UEFI |
 | `ubuntu-18.04`, `ubuntu-20.04`, `ubuntu-22.04`, `ubuntu-24.04` | 4.15, 5.4, 5.15, 6.8 | 4.15 without BTF |
 | `rocky-8`, `rocky-9` | 4.18, 5.14 | RHEL kernels with backports; 9 boots with UEFI |
-| `fedora-latest` | 6.19 (Fedora 44) | latest release, resolved online |
+| `debian-sid` | 7.2 (October 2026) | unstable, daily image: the next kernel Debian ships; `perf_event_paranoid` 3; boots with UEFI |
+| `fedora-latest`, `fedora-previous` | 6.19 (Fedora 44), 6.17 (Fedora 43) | the latest release and the one before it, resolved online |
 | `arch` | rolling | |
+| `gentoo` | 6.18 dist-kernel | the autobuilds' latest cloud-init image, OpenRC; boots with UEFI |
 | `alpine` | 6.18 `virt` | musl, busybox |
 
 Images are downloaded once, verified against the checksum published by the
@@ -195,7 +197,19 @@ command = "./target/release/mytool --selftest"
 as_user = "test"                      # or "root"
 # exclude = [".git", "target"]        # copied to /distroproof/work
 # include = ["target/release/mytool"]
+# file_caps = { "/opt/mytool/bin/mytool" = ["bpf", "perfmon"] }  # setcap after setup
+# collect = ["results/*.json"]        # brought back to .distroproof/collect/<target>/
 ```
+
+`setup` and `command` see `DP_TARGET` (the target's name) and `DP_IMAGE`.
+`file_caps` grants file capabilities on an installed binary, as root, after
+`setup` -- what a package's install does -- where `caps` raises ambient
+capabilities on the user, which every program the command starts inherits;
+a kernel that predates a capability (before 5.8 for `bpf` and `perfmon`) is
+a warning naming `cap_last_cap`. `collect` copies the files matching each
+pattern, relative to the working directory, back to
+`.distroproof/collect/<target>/` after the command, and lists them in the
+report's `collected`.
 
 Errors (unknown key, nonexistent image, invalid duration…) are reported with
 their line and column, without starting any VM. `distroproof up` runs the

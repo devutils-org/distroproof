@@ -73,6 +73,8 @@ impl Payload<'_> {
         let mut env = String::new();
         let mut var = |k: &str, v: &str| env.push_str(&format!("{k}={}\n", shell_quote(v)));
         var("DP_USER", &spec.user);
+        var("DP_TARGET", &spec.name);
+        var("DP_IMAGE", &spec.image);
         var("DP_CAPS", &spec.caps.join(","));
         var("DP_PROBE", if run_steps && spec.probe { "1" } else { "0" });
         var(
@@ -99,6 +101,21 @@ impl Payload<'_> {
         }
         if let Some(command) = command {
             files.push(("job/command.sh".into(), script(command), 0o755));
+        }
+        if run_steps && !spec.file_caps.is_empty() {
+            let lines: String = spec
+                .file_caps
+                .iter()
+                .map(|(path, caps)| {
+                    let caps: Vec<String> = caps.iter().map(|c| format!("cap_{c}")).collect();
+                    format!("{}\t{}+ep\n", path, caps.join(","))
+                })
+                .collect();
+            files.push(("job/filecaps".into(), lines.into_bytes(), 0o644));
+        }
+        if run_steps && !spec.collect.is_empty() {
+            let lines: String = spec.collect.iter().map(|p| format!("{p}\n")).collect();
+            files.push(("job/collect".into(), lines.into_bytes(), 0o644));
         }
         if !spec.sysctl.is_empty() {
             let lines: String = spec
@@ -233,6 +250,11 @@ impl GuestOutput {
             files.push((name, data));
         }
         Ok(GuestOutput { files })
+    }
+
+    /// Every file of the output disk, by name.
+    pub fn files(&self) -> impl Iterator<Item = (&str, &[u8])> {
+        self.files.iter().map(|(n, d)| (n.as_str(), d.as_slice()))
     }
 
     pub fn get(&self, name: &str) -> Option<&[u8]> {

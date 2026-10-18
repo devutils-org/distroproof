@@ -105,6 +105,10 @@ struct RawRun {
     probe: Option<bool>,
     #[serde(default)]
     env: BTreeMap<Spanned<String>, String>,
+    #[serde(default)]
+    file_caps: BTreeMap<String, Spanned<Vec<String>>>,
+    #[serde(default)]
+    collect: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -359,6 +363,20 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
             }
             None => Vec::new(),
         };
+        let mut file_caps = BTreeMap::new();
+        for (path, caps) in &run.file_caps {
+            if !path.starts_with('/') {
+                return Err(ctx.error(
+                    caps.span(),
+                    format!("file_caps: `{path}` is not an absolute path"),
+                ));
+            }
+            check_caps(caps, &ctx)?;
+            file_caps.insert(
+                path.clone(),
+                caps.get_ref().iter().map(|c| normalize_cap(c)).collect(),
+            );
+        }
         targets.push(VmSpec {
             name: name.clone(),
             image: t.image.get_ref().clone(),
@@ -381,6 +399,8 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
             include: run.include.clone(),
             probe,
             hold: false,
+            file_caps,
+            collect: run.collect.clone(),
         });
     }
     Ok(Config { targets })
@@ -614,6 +634,27 @@ as_user = "test"
             parse_str(&int_sysctl).unwrap().targets[0].sysctl["kernel.perf_event_paranoid"],
             "3"
         );
+    }
+
+    #[test]
+    fn file_caps_and_collect() {
+        let base = "[[target]]\nname = \"a\"\nimage = \"alpine\"\n";
+        let ok = format!(
+            "{base}[run]\ncommand = \"true\"\ncollect = [\"out/*.json\"]\n\
+             file_caps = {{ \"/opt/omn/bin/omn\" = [\"CAP_BPF\", \"perfmon\"] }}\n"
+        );
+        let spec = &parse_str(&ok).unwrap().targets[0];
+        assert_eq!(spec.collect, ["out/*.json"]);
+        assert_eq!(spec.file_caps["/opt/omn/bin/omn"], ["bpf", "perfmon"]);
+        let relative =
+            format!("{base}[run]\ncommand = \"true\"\nfile_caps = {{ \"omn\" = [\"bpf\"] }}\n");
+        assert!(parse_str(&relative)
+            .unwrap_err()
+            .message
+            .contains("not an absolute path"));
+        let bad =
+            format!("{base}[run]\ncommand = \"true\"\nfile_caps = {{ \"/x\" = [\"fly\"] }}\n");
+        assert!(parse_str(&bad).unwrap_err().message.contains("fly"));
     }
 
     #[test]

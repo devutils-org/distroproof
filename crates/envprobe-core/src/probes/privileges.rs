@@ -101,6 +101,28 @@ pub fn probe() -> Section {
             None => missing("Seccomp"),
         },
     );
+    // Before memory-cgroup accounting (Linux 5.11) every eBPF map is charged
+    // to this limit, and a distribution's 64 KiB refuses a ring buffer with
+    // EPERM -- which reads as a missing capability (Debian 11).
+    let memlock = fs::read_to_string("/proc/self/limits")
+        .ok()
+        .and_then(|text| crate::parse::limits::limit(&text, "Max locked memory"));
+    match memlock {
+        Some((soft, hard)) => {
+            s.push_privileged("memlock_soft", Value::ok(soft));
+            s.push_privileged("memlock_hard", Value::ok(hard));
+        }
+        None => {
+            s.push_privileged(
+                "memlock_soft",
+                Value::unavailable("/proc/self/limits unreadable"),
+            );
+            s.push_privileged(
+                "memlock_hard",
+                Value::unavailable("/proc/self/limits unreadable"),
+            );
+        }
+    }
     s.push_privileged(
         "no_new_privs",
         status

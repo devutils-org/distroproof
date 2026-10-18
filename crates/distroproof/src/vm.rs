@@ -565,6 +565,30 @@ fn collect(out: &GuestOutput, spec: &VmSpec, prepare_only: bool, result: &mut Ta
     if spec.command.is_some() && !prepare_only {
         result.command = Some(stage("command"));
     }
+    if !spec.collect.is_empty() && !prepare_only {
+        let base = spec
+            .workdir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".distroproof/collect")
+            .join(&spec.name);
+        for (name, data) in out.files() {
+            let Some(rel) = name.strip_prefix("collect/") else {
+                continue;
+            };
+            let path = base.join(rel);
+            let written = path
+                .parent()
+                .map_or(Ok(()), std::fs::create_dir_all)
+                .and_then(|()| std::fs::write(&path, data));
+            match written {
+                Ok(()) => result.collected.push(path.display().to_string()),
+                Err(e) => result
+                    .warnings
+                    .push(format!("collect: {}: {e}", path.display())),
+            }
+        }
+    }
     if let Some(json) = out.get("envprobe.json") {
         match serde_json::from_slice(json) {
             Ok(report) => result.envprobe = Some(report),

@@ -28,9 +28,11 @@ warn() { say WARN "$*"; echo "$*" >>"$OUT/warnings"; }
 mkdir -p "$OUT"
 say READY "$(cut -d' ' -f1 /proc/uptime)"
 
-# Job parameters: DP_USER, DP_CAPS, DP_PROBE, DP_EXTRACT_KERNEL,
-# DP_SETUP, DP_COMMAND (1 if job/setup.sh, job/command.sh exist).
+# Job parameters: DP_USER, DP_TARGET, DP_IMAGE, DP_CAPS, DP_PROBE,
+# DP_EXTRACT_KERNEL, DP_SETUP, DP_COMMAND (1 if job/setup.sh, job/command.sh
+# exist). DP_TARGET and DP_IMAGE are exported to setup and the command.
 . $D/job/env
+export DP_TARGET DP_IMAGE
 
 disk() {
     for d in /sys/block/*; do
@@ -119,6 +121,27 @@ fi
 
 [ -n "$DP_SETUP" ] && run setup "sh $D/job/setup.sh"
 
+# File capabilities, after setup installed the files: what a program's install
+# grants, where `caps` would raise ambient ones every child inherits.
+if [ -f $D/job/filecaps ]; then
+    if ! command -v setcap >/dev/null 2>&1; then
+        if command -v apk >/dev/null 2>&1; then apk add -q libcap-utils >/dev/null 2>&1
+        elif command -v apt-get >/dev/null 2>&1; then apt-get install -qq -y libcap2-bin >/dev/null 2>&1
+        elif command -v dnf >/dev/null 2>&1; then dnf install -q -y libcap >/dev/null 2>&1
+        elif command -v pacman >/dev/null 2>&1; then pacman -Sq --noconfirm libcap >/dev/null 2>&1
+        fi
+    fi
+    last=$(cat /proc/sys/kernel/cap_last_cap 2>/dev/null || echo 0)
+    while IFS="$(printf '\t')" read -r path caps; do
+        [ -n "$path" ] || continue
+        if ! command -v setcap >/dev/null 2>&1; then
+            warn "file_caps: no setcap in this image, $path keeps no capability"
+        elif ! setcap "$caps" "$path" 2>"$OUT/filecaps.err"; then
+            warn "file_caps: setcap $caps $path refused (cap_last_cap $last): $(head -c 200 "$OUT/filecaps.err")"
+        fi
+    done <$D/job/filecaps
+fi
+
 if [ "$DP_PROBE" = 1 ]; then
     say STAGE probe
     sh -c "$(as_user $D/job/probe.sh)" >"$OUT/envprobe.json" 2>"$OUT/envprobe.err" </dev/null
@@ -127,12 +150,30 @@ fi
 
 [ -n "$DP_COMMAND" ] && run command "$(as_user $D/job/command.sh)"
 
+# Files the job asked back, kept with their paths under out/collect.
+if [ -f $D/job/collect ]; then
+    mkdir -p "$OUT/collect"
+    while IFS= read -r pattern; do
+        [ -n "$pattern" ] || continue
+        found=""
+        for f in $pattern; do
+            [ -e "$f" ] || continue
+            found=1
+            tar -cf - "$f" 2>/dev/null | tar -xf - -C "$OUT/collect" 2>/dev/null ||
+                warn "collect: cannot copy $f"
+        done
+        [ -n "$found" ] || warn "collect: nothing matches $pattern"
+    done <$D/job/collect
+fi
+
 # Kernel and initramfs for the following direct boots.
 if [ "$DP_EXTRACT_KERNEL" = 1 ]; then
     say STAGE kernel
     r=$(uname -r)
     k=""
-    for f in /boot/vmlinuz-$r /lib/modules/$r/vmlinuz /usr/lib/modules/$r/vmlinuz \
+    # /boot/kernel-$r is Gentoo's installkernel; its modules/$r/vmlinuz is a
+    # link into a kernel source tree the image does not ship.
+    for f in /boot/vmlinuz-$r /boot/kernel-$r /lib/modules/$r/vmlinuz /usr/lib/modules/$r/vmlinuz \
         /boot/vmlinuz-virt /boot/vmlinuz-lts /boot/vmlinuz-linux /boot/vmlinuz; do
         [ -f "$f" ] && { k=$f; break; }
     done
