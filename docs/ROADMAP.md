@@ -32,9 +32,9 @@ Tâches :
 
 Critères de sortie :
 
-- [ ] `cargo build --release --target x86_64-unknown-linux-musl` produit un binaire statique.
-- [ ] La CI est verte sur une PR vide.
-- [ ] `envprobe --version` fonctionne.
+- [x] `cargo build --release --target x86_64-unknown-linux-musl` produit un binaire statique.
+- [x] La CI est verte sur une PR vide.
+- [x] `envprobe --version` fonctionne.
 
 ## Phase 1 — Sonde d'environnement (envprobe)
 
@@ -67,10 +67,10 @@ Les sondes BPF et perf doivent utiliser des syscalls directs (via le crate `libc
 
 Critères de sortie :
 
-- [ ] Toutes les catégories du tableau sont implémentées.
-- [ ] Exécuté en utilisateur normal puis en root, la sortie diffère là où c'est attendu (privilèges, BPF, perf).
-- [ ] Exécuté dans un conteneur Docker par défaut, la sonde détecte le conteneur et le seccomp sans planter.
-- [ ] Tests unitaires sur les parseurs (`os-release`, `config.gz`, `/proc/self/status`) avec des fixtures de plusieurs distros.
+- [x] Toutes les catégories du tableau sont implémentées.
+- [x] Exécuté en utilisateur normal puis en root, la sortie diffère là où c'est attendu (privilèges, BPF, perf).
+- [x] Exécuté dans un conteneur Docker par défaut, la sonde détecte le conteneur et le seccomp sans planter.
+- [x] Tests unitaires sur les parseurs (`os-release`, `config.gz`, `/proc/self/status`) avec des fixtures de plusieurs distros.
 
 ## Phase 2 — Sortie structurée et diff
 
@@ -86,9 +86,9 @@ Tâches :
 
 Critères de sortie :
 
-- [ ] Le JSON valide contre le schéma publié.
-- [ ] `diff` entre ta machine et un conteneur Alpine fait ressortir libc, `/bin/sh` et gestionnaire de paquets, mais pas le kernel (même noyau).
-- [ ] Tests de non-régression sur au moins trois fixtures.
+- [x] Le JSON valide contre le schéma publié.
+- [x] `diff` entre ta machine et un conteneur Alpine fait ressortir libc, `/bin/sh` et gestionnaire de paquets, mais pas le kernel (même noyau).
+- [x] Tests de non-régression sur au moins trois fixtures.
 
 ## Phase 3 — VM avec noyau et rootfs de distro
 
@@ -109,10 +109,10 @@ Piste d'accélération à évaluer ensuite : extraire noyau et initramfs de l'im
 
 Critères de sortie :
 
-- [ ] Les 7 cibles bootent et renvoient un rapport `envprobe` JSON.
-- [ ] Le rapport de chaque VM montre bien le noyau de la distro (4.18 sur Rocky 8, 5.14 sur Rocky 9…) et non celui de l'hôte.
-- [ ] Une exécution répétée réutilise le cache et laisse le disque propre.
-- [ ] Temps de boot mesuré et affiché par cible.
+- [x] Les 7 cibles bootent et renvoient un rapport `envprobe` JSON.
+- [x] Le rapport de chaque VM montre bien le noyau de la distro (4.18 sur Rocky 8, 5.14 sur Rocky 9…) et non celui de l'hôte.
+- [x] Une exécution répétée réutilise le cache et laisse le disque propre.
+- [x] Temps de boot mesuré et affiché par cible.
 
 ## Phase 4 — Fichier déclaratif et matrice
 
@@ -155,9 +155,9 @@ Tâches :
 
 Critères de sortie :
 
-- [ ] Une matrice de 5 cibles avec variantes tourne en une commande.
-- [ ] Le rapport `envprobe` de chaque cible reflète bien les variantes demandées (paranoid, lockdown).
-- [ ] Un fichier invalide donne une erreur claire sans lancer de VM.
+- [x] Une matrice de 5 cibles avec variantes tourne en une commande.
+- [x] Le rapport `envprobe` de chaque cible reflète bien les variantes demandées (paranoid, lockdown).
+- [x] Un fichier invalide donne une erreur claire sans lancer de VM.
 
 ## Phase 5 — Tests et rapport
 
@@ -173,8 +173,8 @@ Tâches :
 
 Critères de sortie :
 
-- [ ] Un échec volontaire (programme exigeant BTF) est détecté sur une cible sans BTF, et le rapport désigne BTF comme cause probable.
-- [ ] La matrice tourne en CI sur une PR et publie un résumé Markdown.
+- [x] Un échec volontaire (programme exigeant BTF) est détecté sur une cible sans BTF, et le rapport désigne BTF comme cause probable.
+- [x] La matrice tourne en CI sur une PR et publie un résumé Markdown.
 
 ## Phase 6 — TUI de monitoring
 
@@ -202,11 +202,11 @@ Rendu : thèmes configurables dans `$XDG_CONFIG_HOME/distroproof/theme.toml`, tr
 
 Critères de sortie :
 
-- [ ] Une matrice de 7 cibles s'affiche en temps réel, avec états, jauges et logs, sans scintillement ni blocage de l'interface pendant les boots.
-- [ ] Pause, reprise, relance et kill fonctionnent depuis la TUI.
-- [ ] La console série interactive d'une VM est utilisable dans un panneau.
-- [ ] Sans TTY, la même commande produit la sortie texte habituelle.
-- [ ] La TUI reste fluide sur un terminal de 80 × 24 et s'adapte au redimensionnement.
+- [x] Une matrice de 7 cibles s'affiche en temps réel, avec états, jauges et logs, sans scintillement ni blocage de l'interface pendant les boots.
+- [x] Pause, reprise, relance et kill fonctionnent depuis la TUI.
+- [x] La console série interactive d'une VM est utilisable dans un panneau.
+- [x] Sans TTY, la même commande produit la sortie texte habituelle.
+- [x] La TUI reste fluide sur un terminal de 80 × 24 et s'adapte au redimensionnement.
 
 ## Pistes futures
 

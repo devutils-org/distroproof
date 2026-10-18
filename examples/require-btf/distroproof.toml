@@ -1,0 +1,24 @@
+# Échec volontaire : require-btf.sh casse sur Ubuntu 18.04 (noyau 4.15 sans
+# BTF) et distroproof doit désigner le BTF comme cause probable.
+#
+#   distroproof up -f examples/require-btf/distroproof.toml
+
+[defaults]
+memory = "1G"
+cpus = 2
+timeout = "5m"
+
+[[target]]
+name = "ubuntu-22.04"
+image = "ubuntu-22.04"
+
+[[target]]
+name = "ubuntu-18.04"
+image = "ubuntu-18.04"
+
+[[target]]
+name = "debian-12"
+image = "debian-12"
+
+[run]
+command = "./require-btf.sh"

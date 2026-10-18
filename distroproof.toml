@@ -1,0 +1,59 @@
+# Matrice de dogfooding : envprobe testé par distroproof sur les distros
+# cibles, avec des variantes de noyau et de privilèges.
+#
+#   distroproof up                    # TUI si terminal, sinon texte
+#   distroproof up --markdown out.md  # résumé pour un commentaire de PR
+
+[defaults]
+memory = "1G"
+cpus = 2
+timeout = "5m"
+
+[[target]]
+name = "debian-12"
+image = "debian-12"
+
+[[target]]
+name = "ubuntu-22.04"
+image = "ubuntu-22.04"
+
+[[target]]
+name = "rocky-9"
+image = "rocky-9"
+
+[[target]]
+name = "rocky-8"
+image = "rocky-8"
+
+[[target]]
+name = "fedora"
+image = "fedora-latest"
+
+[[target]]
+name = "arch"
+image = "arch"
+
+[[target]]
+name = "alpine"
+image = "alpine"
+
+# Variantes : perf verrouillé, lockdown, PMU masquée avec capabilities.
+[[target]]
+name = "ubuntu-paranoid"
+image = "ubuntu-22.04"
+sysctl = { "kernel.perf_event_paranoid" = 3, "kernel.kptr_restrict" = 2 }
+
+[[target]]
+name = "fedora-lockdown"
+image = "fedora-latest"
+kernel_cmdline = "lockdown=confidentiality"
+
+[[target]]
+name = "debian-nopmu"
+image = "debian-12"
+pmu = false
+caps = ["perfmon", "bpf"]
+
+[run]
+command = "sh scripts/selftest.sh"
+as_user = "test"
