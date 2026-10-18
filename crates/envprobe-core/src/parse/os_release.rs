@@ -1,4 +1,4 @@
-//! `/etc/os-release` (format décrit dans os-release(5)).
+//! `/etc/os-release` (format described in os-release(5)).
 
 use std::collections::BTreeMap;
 

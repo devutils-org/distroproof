@@ -1,5 +1,5 @@
-//! Appels système bruts. Seul module autorisé à contenir de l'`unsafe` :
-//! chaque bloc justifie pourquoi il est sûr. Les fonctions exposées sont sûres.
+//! Raw system calls. The only module allowed to contain `unsafe`: each block
+//! explains why it is sound. The exposed functions are safe.
 
 use std::ffi::CStr;
 use std::io;
@@ -9,13 +9,13 @@ fn last_errno() -> i32 {
     io::Error::last_os_error().raw_os_error().unwrap_or(0)
 }
 
-/// Transforme le retour d'un syscall créant un descripteur.
+/// Turns the return value of a syscall that creates a descriptor into a result.
 fn fd_result(ret: libc::c_long) -> Result<OwnedFd, i32> {
     if ret < 0 {
         Err(last_errno())
     } else {
-        // SAFETY : le noyau vient de créer ce descripteur pour nous, personne
-        // d'autre ne le possède ; OwnedFd le fermera une seule fois.
+        // SAFETY: the kernel just created this descriptor for us, nobody else
+        // owns it; OwnedFd will close it exactly once.
         Ok(unsafe { OwnedFd::from_raw_fd(ret as RawFd) })
     }
 }
@@ -27,16 +27,16 @@ pub struct Uname {
 }
 
 pub fn uname() -> io::Result<Uname> {
-    // SAFETY : utsname ne contient que des tableaux de c_char, l'état tout à
-    // zéro est valide.
+    // SAFETY: utsname only contains c_char arrays, so the all-zero state is
+    // valid.
     let mut u: libc::utsname = unsafe { std::mem::zeroed() };
-    // SAFETY : `u` est un pointeur valide vers une utsname modifiable.
+    // SAFETY: `u` is a valid pointer to a mutable utsname.
     if unsafe { libc::uname(&mut u) } != 0 {
         return Err(io::Error::last_os_error());
     }
     let field = |s: &[libc::c_char]| {
-        // SAFETY : le noyau termine chaque champ par un NUL, et la structure
-        // était initialisée à zéro, donc un NUL existe dans le tableau.
+        // SAFETY: the kernel NUL-terminates every field, and the struct was
+        // zero-initialized, so the array contains a NUL.
         unsafe { CStr::from_ptr(s.as_ptr()) }
             .to_string_lossy()
             .into_owned()
@@ -49,7 +49,7 @@ pub fn uname() -> io::Result<Uname> {
 }
 
 pub fn page_size() -> usize {
-    // SAFETY : sysconf n'a pas de précondition.
+    // SAFETY: sysconf has no precondition.
     let size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
     if size > 0 {
         size as usize
@@ -60,8 +60,8 @@ pub fn page_size() -> usize {
 
 const BPF_MAP_CREATE: libc::c_long = 0;
 const BPF_PROG_LOAD: libc::c_long = 5;
-/// Taille de `union bpf_attr` transmise : assez pour les champs utilisés, le
-/// reste est à zéro, ce que tous les noyaux acceptent.
+/// Size of the `union bpf_attr` passed in: enough for the fields we use; the
+/// rest is zero, which every kernel accepts.
 const BPF_ATTR_SIZE: usize = 128;
 
 fn put_u32(buf: &mut [u8], off: usize, v: u32) {
@@ -73,9 +73,9 @@ fn put_u64(buf: &mut [u8], off: usize, v: u64) {
 }
 
 fn bpf(cmd: libc::c_long, attr: &mut [u8; BPF_ATTR_SIZE]) -> Result<OwnedFd, i32> {
-    // SAFETY : `attr` est un tampon valide de BPF_ATTR_SIZE octets. Les
-    // pointeurs qu'il contient (instructions, licence, log) sont posés par les
-    // appelants de ce module et restent valides pendant l'appel.
+    // SAFETY: `attr` is a valid buffer of BPF_ATTR_SIZE bytes. The pointers it
+    // holds (instructions, license, log) are set by this module's callers and
+    // stay valid for the duration of the call.
     let ret = unsafe {
         libc::syscall(
             libc::SYS_bpf,
@@ -87,7 +87,7 @@ fn bpf(cmd: libc::c_long, attr: &mut [u8; BPF_ATTR_SIZE]) -> Result<OwnedFd, i32
     fd_result(ret)
 }
 
-/// Une instruction eBPF encodée (`struct bpf_insn`).
+/// An encoded eBPF instruction (`struct bpf_insn`).
 #[derive(Clone, Copy)]
 pub struct BpfInsn([u8; 8]);
 
@@ -121,11 +121,11 @@ pub struct ProgLoad<'a> {
     pub prog_flags: u32,
     pub kern_version: u32,
     pub insns: &'a [BpfInsn],
-    /// Tampon du log du vérificateur (niveau 1) si fourni.
+    /// Verifier log buffer (level 1), if provided.
     pub log: Option<&'a mut [u8]>,
 }
 
-/// `BPF_PROG_LOAD`. Le programme est fermé dès que le descripteur est lâché.
+/// `BPF_PROG_LOAD`. The program is closed as soon as the descriptor is dropped.
 pub fn bpf_prog_load(req: ProgLoad<'_>) -> Result<OwnedFd, i32> {
     let license = b"GPL\0";
     let insns: Vec<u8> = req.insns.iter().flat_map(|i| i.0).collect();
@@ -153,7 +153,7 @@ pub struct MapCreate {
     pub map_flags: u32,
 }
 
-/// `BPF_MAP_CREATE`. La map est détruite dès que le descripteur est lâché.
+/// `BPF_MAP_CREATE`. The map is destroyed as soon as the descriptor is dropped.
 pub fn bpf_map_create(req: &MapCreate) -> Result<OwnedFd, i32> {
     let mut attr = [0u8; BPF_ATTR_SIZE];
     put_u32(&mut attr, 0, req.map_type);
@@ -168,25 +168,25 @@ pub const PERF_TYPE_HARDWARE: u32 = 0;
 pub const PERF_TYPE_SOFTWARE: u32 = 1;
 pub const PERF_COUNT_HW_CPU_CYCLES: u64 = 0;
 pub const PERF_COUNT_SW_CPU_CLOCK: u64 = 0;
-/// PERF_ATTR_SIZE_VER0, compris par tous les noyaux.
+/// PERF_ATTR_SIZE_VER0, understood by every kernel.
 const PERF_ATTR_SIZE: usize = 64;
 const PERF_FLAG_FD_CLOEXEC: libc::c_ulong = 8;
 
-/// `perf_event_open` sur le processus courant, compteur désactivé : rien
-/// n'est mesuré, on teste seulement l'ouverture.
+/// `perf_event_open` on the current process with the counter disabled:
+/// nothing is measured, only opening is tested.
 pub fn perf_event_open(event_type: u32, config: u64, exclude_kernel: bool) -> Result<OwnedFd, i32> {
     let mut attr = [0u8; PERF_ATTR_SIZE];
     put_u32(&mut attr, 0, event_type);
     put_u32(&mut attr, 4, PERF_ATTR_SIZE as u32);
     put_u64(&mut attr, 8, config);
-    // Champs de bits : disabled (0), exclude_kernel (5), exclude_hv (6).
+    // Bit fields: disabled (0), exclude_kernel (5), exclude_hv (6).
     let mut flags: u64 = 1;
     if exclude_kernel {
         flags |= (1 << 5) | (1 << 6);
     }
     put_u64(&mut attr, 40, flags);
-    // SAFETY : `attr` est une perf_event_attr valide de PERF_ATTR_SIZE octets
-    // (taille indiquée dans le champ size) qui survit à l'appel.
+    // SAFETY: `attr` is a valid perf_event_attr of PERF_ATTR_SIZE bytes (the
+    // size given in its size field) that outlives the call.
     let ret = unsafe {
         libc::syscall(
             libc::SYS_perf_event_open,

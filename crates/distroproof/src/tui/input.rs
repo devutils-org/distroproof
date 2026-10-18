@@ -1,4 +1,4 @@
-//! Clavier et souris : navigation modale façon vim, palette de commandes.
+//! Keyboard and mouse: vim-style modal navigation, command palette.
 
 use ratatui::crossterm::event::{
     Event as TermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
@@ -11,31 +11,31 @@ use super::render::{report_rows, ReportRow};
 use super::state::{App, Filter, Mode, Phase, View, Workspace};
 use crate::event::Control;
 
-/// Commandes de la palette : (commande, description).
+/// Palette commands: (command, description).
 pub fn palette_commands(app: &App) -> Vec<(String, String)> {
     let mut cmds: Vec<(String, String)> = [
-        ("pause", "met la cible en pause (QMP stop)"),
-        ("resume", "reprend la cible (QMP cont)"),
-        ("restart", "relance la cible"),
-        ("kill", "tue la cible"),
-        ("restart failed", "relance toutes les cibles en échec"),
-        ("kill all", "tue toutes les VM"),
-        ("console", "panneau courant : console série"),
-        ("logs", "panneau courant : logs"),
-        ("report", "panneau courant : rapport envprobe"),
-        ("dashboard", "panneau courant : dashboard"),
-        ("split", "découpe le panneau (dessous)"),
-        ("vsplit", "découpe le panneau (côte à côte)"),
-        ("close", "ferme le panneau"),
-        ("pin", "épingle le panneau sur la cible"),
-        ("nodiff", "quitte le mode diff"),
-        ("filter all", "toutes les cibles"),
-        ("filter running", "cibles en cours"),
-        ("filter failed", "cibles en échec"),
-        ("filter done", "cibles terminées"),
-        ("ws new", "nouveau workspace"),
-        ("help", "aide"),
-        ("quit", "quitter"),
+        ("pause", "pause the target (QMP stop)"),
+        ("resume", "resume the target (QMP cont)"),
+        ("restart", "restart the target"),
+        ("kill", "kill the target"),
+        ("restart failed", "restart every failed target"),
+        ("kill all", "kill every VM"),
+        ("console", "current pane: serial console"),
+        ("logs", "current pane: logs"),
+        ("report", "current pane: envprobe report"),
+        ("dashboard", "current pane: dashboard"),
+        ("split", "split the pane (below)"),
+        ("vsplit", "split the pane (side by side)"),
+        ("close", "close the pane"),
+        ("pin", "pin the pane to the target"),
+        ("nodiff", "leave diff mode"),
+        ("filter all", "all targets"),
+        ("filter running", "running targets"),
+        ("filter failed", "failed targets"),
+        ("filter done", "finished targets"),
+        ("ws new", "new workspace"),
+        ("help", "help"),
+        ("quit", "quit"),
     ]
     .iter()
     .map(|(c, h)| (c.to_string(), h.to_string()))
@@ -43,20 +43,20 @@ pub fn palette_commands(app: &App) -> Vec<(String, String)> {
     for t in &app.targets {
         cmds.push((
             format!("diff {}", t.name),
-            "diff du rapport contre cette cible".into(),
+            "diff the report against this target".into(),
         ));
-        cmds.push((format!("select {}", t.name), "sélectionne la cible".into()));
+        cmds.push((format!("select {}", t.name), "select the target".into()));
     }
     for (i, ws) in app.workspaces.iter().enumerate() {
         cmds.push((
             format!("ws {}", i + 1),
-            format!("workspace « {} »", ws.name),
+            format!("workspace \"{}\"", ws.name),
         ));
     }
     cmds
 }
 
-/// Correspondance floue : les caractères de `query` apparaissent dans l'ordre.
+/// Fuzzy match: the characters of `query` appear in order.
 fn fuzzy(query: &str, text: &str) -> Option<usize> {
     let mut score = 0;
     let mut last = 0;
@@ -82,7 +82,7 @@ fn target_by_name(app: &App, name: &str) -> Option<usize> {
     app.targets.iter().position(|t| t.name == name)
 }
 
-/// Exécute une commande textuelle (palette ou `:` libre).
+/// Runs a text command (palette or free-form `:`).
 pub fn execute(app: &mut App, cmd: &str) {
     let words: Vec<&str> = cmd.split_whitespace().collect();
     let sel = app.selected;
@@ -108,7 +108,7 @@ pub fn execute(app: &mut App, cmd: &str) {
         }
         ["console"] => set_view(app, View::Console),
         ["logs"] => set_view(app, View::Logs),
-        ["report" | "rapport"] => set_view(app, View::Report),
+        ["report"] => set_view(app, View::Report),
         ["dashboard"] => set_view(app, View::Dashboard),
         ["split"] => split(app, false),
         ["vsplit"] => split(app, true),
@@ -122,18 +122,18 @@ pub fn execute(app: &mut App, cmd: &str) {
                     set_view(app, View::Report);
                 }
             }
-            None => app.notify(format!("cible inconnue : {name}")),
+            None => app.notify(format!("unknown target: {name}")),
         },
         ["select", name] => match target_by_name(app, name) {
             Some(i) => app.selected = i,
-            None => app.notify(format!("cible inconnue : {name}")),
+            None => app.notify(format!("unknown target: {name}")),
         },
         ["filter", f] => match Filter::parse(f) {
             Some(f) => {
                 app.filter = f;
                 app.fix_selection();
             }
-            None => app.notify(format!("filtre inconnu : {f}")),
+            None => app.notify(format!("unknown filter: {f}")),
         },
         ["ws", "new"] => {
             let pane = app.add_pane(View::Dashboard);
@@ -147,12 +147,12 @@ pub fn execute(app: &mut App, cmd: &str) {
         }
         ["ws", n] => match n.parse::<usize>() {
             Ok(n) if n >= 1 && n <= app.workspaces.len() => app.ws = n - 1,
-            _ => app.notify(format!("workspace inconnu : {n}")),
+            _ => app.notify(format!("unknown workspace: {n}")),
         },
         ["help"] => app.mode = Mode::Help,
         ["q" | "quit"] => request_quit(app),
         ["q!" | "quit!"] => app.quit = true,
-        _ => app.notify(format!("commande inconnue : {cmd}")),
+        _ => app.notify(format!("unknown command: {cmd}")),
     }
 }
 
@@ -183,7 +183,7 @@ fn close(app: &mut App) {
     if ws.root.close(focus) {
         ws.focus = ws.root.leaves()[0];
     } else {
-        app.notify("dernier panneau du workspace");
+        app.notify("last pane of the workspace");
     }
 }
 
@@ -202,7 +202,7 @@ fn request_quit(app: &mut App) {
     } else {
         app.quit_armed = true;
         app.notify(format!(
-            "{} VM en cours : q encore pour tout arrêter et quitter",
+            "{} VM(s) running: q again to stop everything and quit",
             app.running_count()
         ));
     }
@@ -228,7 +228,7 @@ fn focus_dir(app: &mut App, dir: Dir) {
     }
 }
 
-/// Octets envoyés à la console série pour une touche.
+/// Bytes sent to the serial console for a key.
 pub fn key_bytes(key: &KeyEvent) -> Vec<u8> {
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
     match key.code {
@@ -268,7 +268,7 @@ fn handle_key(app: &mut App, key: KeyEvent) {
     }
     match app.mode.clone() {
         Mode::Insert => {
-            // Ctrl+] arrive en 0x1D, que crossterm décode en Ctrl+5.
+            // Ctrl+] arrives as 0x1D, which crossterm decodes as Ctrl+5.
             if ctrl && matches!(key.code, KeyCode::Char(']') | KeyCode::Char('5')) {
                 app.mode = Mode::Normal;
                 return;
@@ -318,7 +318,7 @@ fn handle_key(app: &mut App, key: KeyEvent) {
             KeyCode::Enter => {
                 let matches = palette_matches(app, &input);
                 app.mode = Mode::Normal;
-                // Une commande avec arguments tapée en entier passe telle quelle.
+                // A command with arguments typed in full goes through as is.
                 let exact = palette_commands(app)
                     .iter()
                     .any(|(c, _)| *c == input.trim());
@@ -448,8 +448,8 @@ fn normal_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('x') => app.send(app.selected, Control::Kill),
         KeyCode::Char('p') => toggle_pin(app),
         KeyCode::Char('c') => {
-            // Ouvre la console de la cible dans le panneau courant (ou dans
-            // un panneau console déjà visible).
+            // Opens the target's console in the current pane (or in a console
+            // pane that is already visible).
             let existing = app
                 .workspace()
                 .root
@@ -467,7 +467,7 @@ fn normal_key(app: &mut App, key: KeyEvent) {
             if app.targets[app.pane_target(pane)].alive {
                 app.mode = Mode::Insert;
             } else {
-                app.notify("VM arrêtée : relancez-la (r), avec --hold pour garder la console");
+                app.notify("VM stopped: restart it (r), with --hold to keep the console");
             }
         }
         KeyCode::Char('/') => {
@@ -488,7 +488,7 @@ fn normal_key(app: &mut App, key: KeyEvent) {
             _ => {}
         },
         KeyCode::Char('d') if view == View::Report => {
-            // Diff contre la cible suivante qui a un rapport.
+            // Diff against the next target that has a report.
             let me = app.pane_target(pane);
             let n = app.targets.len();
             let start = app.diff_with.unwrap_or(me);
@@ -500,7 +500,7 @@ fn normal_key(app: &mut App, key: KeyEvent) {
                         .is_some_and(|r| r.envprobe.is_some())
             });
             if app.diff_with.is_none() {
-                app.notify("aucune autre cible n'a de rapport envprobe");
+                app.notify("no other target has an envprobe report");
             }
         }
         KeyCode::Enter if view == View::Report => toggle_section(app, pane),
@@ -532,7 +532,7 @@ fn normal_key(app: &mut App, key: KeyEvent) {
     }
 }
 
-/// Défilement : positif vers le haut (logs : depuis le bas).
+/// Scrolling: positive is up (logs: from the bottom).
 fn scroll(app: &mut App, pane: usize, delta: isize) {
     let p = &mut app.panes[pane];
     match p.view {
@@ -579,7 +579,7 @@ fn collapse_at_cursor(app: &mut App, pane: usize, collapse: bool) {
     if let Some(name) = section_at_cursor(app, pane) {
         if collapse {
             app.panes[pane].collapsed.insert(name.clone());
-            // Le curseur revient sur l'en-tête replié.
+            // The cursor goes back to the collapsed header.
             let rows = report_rows(app, pane);
             if let Some(i) = rows
                 .iter()
@@ -593,7 +593,7 @@ fn collapse_at_cursor(app: &mut App, pane: usize, collapse: bool) {
     }
 }
 
-/// Fait défiler le panneau logs jusqu'à la correspondance suivante.
+/// Scrolls the logs pane to the next match.
 fn jump_match(app: &mut App, forward: bool) {
     let Some(needle) = app.search.clone().filter(|s| !s.is_empty()) else {
         return;
@@ -623,7 +623,7 @@ fn jump_match(app: &mut App, forward: bool) {
         .iter()
         .find(|(p, _)| *p == pane)
         .map_or(10, |(_, r)| r.height.saturating_sub(2) as usize);
-    // Ligne actuellement en bas du panneau.
+    // Line currently at the bottom of the pane.
     let bottom = total.saturating_sub(app.panes[pane].scroll + 1);
     let found = if forward {
         (bottom + 1..total)
@@ -637,11 +637,11 @@ fn jump_match(app: &mut App, forward: bool) {
     };
     match found {
         Some(i) => {
-            // Correspondance au milieu du panneau.
+            // Match in the middle of the pane.
             let bottom_line = (i + height / 2).min(total.saturating_sub(1));
             app.panes[pane].scroll = total.saturating_sub(bottom_line + 1);
         }
-        None => app.notify(format!("« {needle} » introuvable")),
+        None => app.notify(format!("\"{needle}\" not found")),
     }
 }
 

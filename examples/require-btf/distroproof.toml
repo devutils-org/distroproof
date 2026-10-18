@@ -1,5 +1,5 @@
-# Échec volontaire : require-btf.sh casse sur Ubuntu 18.04 (noyau 4.15 sans
-# BTF) et distroproof doit désigner le BTF comme cause probable.
+# Deliberate failure: require-btf.sh breaks on Ubuntu 18.04 (kernel 4.15
+# without BTF) and distroproof must name BTF as the probable cause.
 #
 #   distroproof up -f examples/require-btf/distroproof.toml
 

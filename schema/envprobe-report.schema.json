@@ -1,10 +1,10 @@
 {
   "$defs": {
     "Entry": {
-      "description": "Une information du rapport.",
+      "description": "One piece of information in the report.",
       "oneOf": [
         {
-          "description": "Valeur obtenue.",
+          "description": "Value obtained.",
           "properties": {
             "status": {
               "const": "ok",
@@ -21,7 +21,7 @@
           "type": "object"
         },
         {
-          "description": "Information absente ou impossible à obtenir (fichier absent, syscall inexistant…) ; contient la raison.",
+          "description": "Information missing or impossible to obtain (missing file, nonexistent syscall…); holds the reason.",
           "properties": {
             "status": {
               "const": "unavailable",
@@ -38,7 +38,7 @@
           "type": "object"
         },
         {
-          "description": "Accès refusé (EPERM, EACCES, seccomp…) ; contient l'errno et le contexte.",
+          "description": "Access denied (EPERM, EACCES, seccomp…); holds the errno and the context.",
           "properties": {
             "status": {
               "const": "denied",
@@ -60,7 +60,7 @@
           "type": "string"
         },
         "privileged": {
-          "description": "Le résultat change selon les privilèges du processus (root, capabilities).",
+          "description": "The result depends on the process's privileges (root, capabilities).",
           "type": "boolean"
         }
       },
@@ -71,7 +71,7 @@
       "type": "object"
     },
     "Section": {
-      "description": "Une catégorie du rapport, par exemple « kernel » ou « bpf ».",
+      "description": "A report category, for example \"kernel\" or \"bpf\".",
       "properties": {
         "entries": {
           "items": {
@@ -91,7 +91,7 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Rapport complet, tel qu'écrit par `envprobe --json`.",
+  "description": "Full report, as written by `envprobe --json`.",
   "properties": {
     "envprobe_version": {
       "type": "string"

@@ -1,4 +1,4 @@
-//! Description d'une exécution et de son résultat.
+//! Description of a run and of its result.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -7,63 +7,63 @@ use std::time::Duration;
 use envprobe_core::Report;
 use serde::{Deserialize, Serialize};
 
-/// Tout ce qu'il faut pour lancer une cible.
+/// Everything needed to run a target.
 #[derive(Debug, Clone)]
 pub struct VmSpec {
-    /// Nom unique dans la matrice.
+    /// Unique name in the matrix.
     pub name: String,
-    /// Image du catalogue (`debian-12`, `rocky-8`…).
+    /// Catalog image (`debian-12`, `rocky-8`…).
     pub image: String,
     pub memory_mib: u64,
     pub cpus: u32,
     pub timeout: Duration,
     pub sysctl: BTreeMap<String, String>,
-    /// Arguments ajoutés à la ligne de commande du noyau (boot direct).
+    /// Arguments appended to the kernel command line (direct boot).
     pub kernel_cmdline: Option<String>,
-    /// Utilisateur qui lance envprobe et la commande : `root` ou un compte créé.
+    /// User that runs envprobe and the command: `root` or a created account.
     pub user: String,
-    /// Capabilities accordées à l'utilisateur non root (`bpf`, `perfmon`…).
+    /// Capabilities granted to the non-root user (`bpf`, `perfmon`…).
     pub caps: Vec<String>,
-    /// PMU exposée à l'invité (`-cpu host`) ou masquée (`pmu=off`).
+    /// PMU exposed to the guest (`-cpu host`) or hidden (`pmu=off`).
     pub pmu: bool,
-    /// Script lancé en root avant la sonde et la commande.
+    /// Script run as root before the probe and the command.
     pub setup: Option<String>,
-    /// Commande shell lancée dans le répertoire de travail de l'invité.
+    /// Shell command run in the guest's working directory.
     pub command: Option<String>,
     pub env: BTreeMap<String, String>,
-    /// Répertoire partagé avec l'invité (copié dans `/distroproof/work`).
+    /// Directory shared with the guest (copied to `/distroproof/work`).
     pub workdir: Option<PathBuf>,
     pub exclude: Vec<String>,
     pub include: Vec<String>,
-    /// Lancer envprobe avant la commande et joindre son rapport.
+    /// Run envprobe before the command and attach its report.
     pub probe: bool,
-    /// Garder la VM allumée après la commande, avec un shell root sur la
-    /// console série, jusqu'à ce qu'on la tue.
+    /// Keep the VM up after the command, with a root shell on the serial
+    /// console, until it is killed.
     pub hold: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
-    /// La commande a renvoyé 0.
+    /// The command returned 0.
     Success,
-    /// La commande a renvoyé un code non nul.
+    /// The command returned a non-zero code.
     Failure,
     TimedOut,
-    /// Interrompue depuis la TUI ou par Ctrl+C.
+    /// Interrupted from the TUI or by Ctrl+C.
     Killed,
-    /// Erreur de l'orchestrateur : image, boot, agent injoignable…
+    /// Orchestrator error: image, boot, unreachable agent…
     Error,
 }
 
 impl Outcome {
     pub fn label(self) -> &'static str {
         match self {
-            Outcome::Success => "succès",
-            Outcome::Failure => "échec",
+            Outcome::Success => "success",
+            Outcome::Failure => "failed",
             Outcome::TimedOut => "timeout",
-            Outcome::Killed => "interrompu",
-            Outcome::Error => "erreur",
+            Outcome::Killed => "killed",
+            Outcome::Error => "error",
         }
     }
 
@@ -72,7 +72,7 @@ impl Outcome {
     }
 }
 
-/// Résultat d'une étape de l'agent (setup, commande).
+/// Result of an agent stage (setup, command).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StageResult {
     pub exit_code: Option<i32>,
@@ -80,7 +80,7 @@ pub struct StageResult {
     pub stderr: String,
 }
 
-/// Variantes appliquées à la cible, recopiées dans le résultat.
+/// Variants applied to the target, copied into the result.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Variant {
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
@@ -97,7 +97,7 @@ pub struct Variant {
 pub struct TargetResult {
     pub name: String,
     pub image: String,
-    /// Fichier de l'image utilisée (version exacte).
+    /// File of the image used (exact version).
     #[serde(default)]
     pub image_file: Option<String>,
     pub outcome: Outcome,
@@ -113,12 +113,12 @@ pub struct TargetResult {
     pub command: Option<StageResult>,
     #[serde(default)]
     pub envprobe: Option<Report>,
-    /// Erreurs de l'agent (sysctl refusé, capability inconnue…).
+    /// Agent errors (sysctl refused, unknown capability…).
     #[serde(default)]
     pub warnings: Vec<String>,
     #[serde(default)]
     pub error: Option<String>,
-    /// Dernières lignes de la console série, utiles quand le boot échoue.
+    /// Last lines of the serial console, useful when the boot fails.
     #[serde(default)]
     pub console_tail: String,
 }
@@ -149,7 +149,7 @@ impl TargetResult {
         }
     }
 
-    /// Release du noyau vue par envprobe dans l'invité.
+    /// Kernel release seen by envprobe in the guest.
     pub fn kernel_release(&self) -> Option<&str> {
         self.envprobe
             .as_ref()?

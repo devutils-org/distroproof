@@ -7,33 +7,33 @@ use clap::{Parser, Subcommand, ValueEnum};
 use envprobe_core::diff::{self, Change, SectionDiff};
 use envprobe_core::{Report, Value, SCHEMA_VERSION};
 
-/// Décrit l'environnement Linux courant (userspace + kernel).
+/// Describes the current Linux environment (userspace + kernel).
 #[derive(Parser, Debug)]
 #[command(version, about, args_conflicts_with_subcommands = true)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
 
-    /// Rapport JSON complet sur stdout.
+    /// Full JSON report on stdout.
     #[arg(long)]
     json: bool,
 
-    /// Sections à sonder, séparées par des virgules (par exemple kernel,bpf).
+    /// Sections to probe, comma-separated (for example kernel,bpf).
     #[arg(long, value_delimiter = ',')]
     section: Vec<String>,
 }
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Compare deux rapports JSON ; code de sortie 1 s'ils diffèrent.
+    /// Compares two JSON reports; exit code 1 if they differ.
     Diff {
         a: PathBuf,
         b: PathBuf,
-        /// Couleurs dans la sortie.
+        /// Colors in the output.
         #[arg(long, value_enum, default_value_t = Color::Auto)]
         color: Color,
     },
-    /// Affiche le schéma JSON du rapport.
+    /// Prints the JSON schema of the report.
     Schema,
 }
 
@@ -63,7 +63,7 @@ fn run_probe(sections: &[String], json: bool) -> Result<ExitCode, String> {
     let known: Vec<&str> = envprobe_core::section_names().collect();
     if let Some(bad) = sections.iter().find(|s| !known.contains(&s.as_str())) {
         return Err(format!(
-            "section inconnue « {bad} » (connues : {})",
+            "unknown section \"{bad}\" (known: {})",
             known.join(", ")
         ));
     }
@@ -77,7 +77,7 @@ fn run_probe(sections: &[String], json: bool) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
-/// Un lecteur fermé (`envprobe | head`) n'est pas une erreur.
+/// A closed reader (`envprobe | head`) is not an error.
 fn quiet_epipe(res: io::Result<()>) -> Result<(), String> {
     match res {
         Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(()),
@@ -106,13 +106,13 @@ fn print_text(report: &Report) -> io::Result<()> {
             writeln!(out, "  {:<width$}  {}{mark}", entry.key, entry.value)?;
         }
     }
-    writeln!(out, "\n* résultat dépendant des privilèges")
+    writeln!(out, "\n* result depends on privileges")
 }
 
 fn load_report(path: &Path) -> Result<Report, String> {
-    let text = fs::read_to_string(path).map_err(|e| format!("{} : {e}", path.display()))?;
+    let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let raw: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|e| format!("{} : JSON invalide : {e}", path.display()))?;
+        .map_err(|e| format!("{}: invalid JSON: {e}", path.display()))?;
     match raw
         .get("schema_version")
         .and_then(serde_json::Value::as_u64)
@@ -120,13 +120,13 @@ fn load_report(path: &Path) -> Result<Report, String> {
         Some(v) if v == u64::from(SCHEMA_VERSION) => {}
         Some(v) => {
             return Err(format!(
-                "{} : schema_version {v} non pris en charge (attendu {SCHEMA_VERSION})",
+                "{}: unsupported schema_version {v} (expected {SCHEMA_VERSION})",
                 path.display()
             ))
         }
-        None => return Err(format!("{} : schema_version absent", path.display())),
+        None => return Err(format!("{}: schema_version missing", path.display())),
     }
-    serde_json::from_value(raw).map_err(|e| format!("{} : rapport invalide : {e}", path.display()))
+    serde_json::from_value(raw).map_err(|e| format!("{}: invalid report: {e}", path.display()))
 }
 
 struct Palette {
@@ -175,12 +175,12 @@ fn run_diff(a_path: &Path, b_path: &Path, color: Color) -> Result<ExitCode, Stri
             match d {
                 SectionDiff::OnlyInA(_) => writeln!(
                     out,
-                    "{}- section absente du second rapport{}",
+                    "{}- section missing from the second report{}",
                     p.minus, p.reset
                 )?,
                 SectionDiff::OnlyInB(_) => writeln!(
                     out,
-                    "{}+ section absente du premier rapport{}",
+                    "{}+ section missing from the first report{}",
                     p.plus, p.reset
                 )?,
                 SectionDiff::Changed { changes, .. } => {
@@ -196,9 +196,9 @@ fn run_diff(a_path: &Path, b_path: &Path, color: Color) -> Result<ExitCode, Stri
             }
         }
         if diffs.is_empty() {
-            writeln!(out, "\naucune différence")?;
+            writeln!(out, "\nno differences")?;
         } else {
-            writeln!(out, "\n{} section(s) différente(s)", diffs.len())?;
+            writeln!(out, "\n{} section(s) differ", diffs.len())?;
         }
         Ok(())
     })();

@@ -1,15 +1,15 @@
-//! Différences entre deux rapports.
+//! Differences between two reports.
 
 use crate::{Report, Section, Value};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Change {
-    /// Clé présente seulement dans le second rapport.
+    /// Key present only in the second report.
     Added {
         key: String,
         value: Value,
     },
-    /// Clé présente seulement dans le premier rapport.
+    /// Key present only in the first report.
     Removed {
         key: String,
         value: Value,
@@ -47,8 +47,8 @@ impl SectionDiff {
     }
 }
 
-/// Sections qui diffèrent, dans l'ordre du premier rapport puis du second.
-/// Le marqueur `privileged` n'est pas comparé : seule la valeur compte.
+/// Sections that differ, in the order of the first report then the second.
+/// The `privileged` flag is not compared: only the value matters.
 pub fn diff(a: &Report, b: &Report) -> Vec<SectionDiff> {
     let mut out = Vec::new();
     for sa in &a.sections {

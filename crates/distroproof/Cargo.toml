@@ -1,6 +1,6 @@
 [package]
 name = "distroproof"
-description = "Lance un programme dans une matrice de VM de distros"
+description = "Runs a program across a matrix of distro VMs"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

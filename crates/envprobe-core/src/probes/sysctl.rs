@@ -1,4 +1,4 @@
-//! Sysctls qui changent le comportement de perf, BPF et ptrace.
+//! Sysctls that change how perf, BPF and ptrace behave.
 
 use crate::{util, Section};
 

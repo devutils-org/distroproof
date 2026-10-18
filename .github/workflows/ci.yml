@@ -31,7 +31,7 @@ jobs:
           targets: x86_64-unknown-linux-musl
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release --target x86_64-unknown-linux-musl
-      - name: Vérifier que le binaire est statique
+      - name: Check that the binary is static
         run: |
           bin=target/x86_64-unknown-linux-musl/release/envprobe
           file "$bin"
@@ -51,25 +51,25 @@ jobs:
         with:
           name: envprobe-x86_64-linux-musl
       - run: chmod +x envprobe
-      - name: Utilisateur normal
+      - name: Normal user
         run: ./envprobe | tee user.txt
       - name: Root
         run: sudo ./envprobe | tee root.txt
-      - name: La sortie diffère selon les privilèges
+      - name: Output differs with privileges
         run: |
           ! diff -q user.txt root.txt
-          grep -E '^  CAP_BPF +non' user.txt
-          grep -E '^  CAP_BPF +oui' root.txt
-      - name: Conteneurs Docker par défaut
+          grep -E '^  CAP_BPF +no' user.txt
+          grep -E '^  CAP_BPF +yes' root.txt
+      - name: Default Docker containers
         run: |
           for image in debian:12 alpine:3.20 rockylinux:9; do
             echo "::group::$image"
             docker run --rm -v "$PWD/envprobe:/envprobe:ro" "$image" /envprobe | tee "docker-${image%%:*}.txt"
             grep -E '^  container +docker' "docker-${image%%:*}.txt"
-            grep -E '^  seccomp +filtre' "docker-${image%%:*}.txt"
+            grep -E '^  seccomp +filter' "docker-${image%%:*}.txt"
             echo "::endgroup::"
           done
-      - name: Rapports JSON et diff hôte / Alpine
+      - name: JSON reports and host / Alpine diff
         run: |
           ./envprobe --json > host.json
           sudo ./envprobe --json > host-root.json
@@ -85,8 +85,8 @@ jobs:
           grep -q '^\[libc\]' diff.txt
           grep -q '^\[shell\]' diff.txt
           grep -q '^\[packages\]' diff.txt
-          # Même noyau : la release ne change pas. La config peut manquer dans
-          # le conteneur (/boot absent), d'où la vérification sur release seule.
+          # Same kernel: the release does not change. The config can be missing in
+          # the container (no /boot), hence the check on release only.
           ! grep -qE '^[-+] release ' diff.txt
       - uses: actions/upload-artifact@v4
         with:

@@ -1,5 +1,5 @@
-//! Rendu : barres, panneaux en tiling, cartes du dashboard, logs, rapport,
-//! console, palette de commandes et aide.
+//! Rendering: bars, tiled panes, dashboard cards, logs, report, console,
+//! command palette and help.
 
 use std::time::Duration;
 
@@ -104,7 +104,7 @@ fn top_bar(f: &mut Frame, app: &App, area: Rect) {
         Span::styled(format!("● {running}"), Style::new().fg(t.running)),
         Span::styled(
             format!(
-                "  / {}  │ filtre : {}",
+                "  / {}  │ filter: {}",
                 app.targets.len(),
                 app.filter.label()
             ),
@@ -126,19 +126,19 @@ fn bottom_bar(f: &mut Frame, app: &App, area: Rect) {
             (
                 " NORMAL ",
                 msg.unwrap_or_else(|| {
-                    "hjkl sélection · espace pause · r relance · x kill · c console · / chercher · : commandes · ? aide · q quitter".into()
+                    "hjkl select · space pause · r restart · x kill · c console · / search · : commands · ? help · q quit".into()
                 }),
             )
         }
         Mode::Window => (
-            " FENÊTRE ",
-            "s/v découper · q fermer · hjkl/w focus · < > + - taille · Échap annuler".into(),
+            " WINDOW ",
+            "s/v split · q close · hjkl/w focus · < > + - resize · Esc cancel".into(),
         ),
         Mode::Insert => (
             " CONSOLE ",
-            "saisie envoyée à la console série · Ctrl+] pour sortir".into(),
+            "input sent to the serial console · Ctrl+] to leave".into(),
         ),
-        Mode::Search(s) => (" CHERCHER ", format!("/{s}")),
+        Mode::Search(s) => (" SEARCH ", format!("/{s}")),
     };
     let line = Line::from(vec![
         Span::styled(
@@ -162,31 +162,31 @@ fn bottom_bar(f: &mut Frame, app: &App, area: Rect) {
 pub fn status(app: &App, t: &Target) -> (String, Color) {
     let th = &app.theme;
     if t.paused {
-        return ("⏸ en pause".into(), th.warning);
+        return ("⏸ paused".into(), th.warning);
     }
     match &t.phase {
-        Phase::Queued => ("en attente".into(), th.muted),
+        Phase::Queued => ("queued".into(), th.muted),
         Phase::Downloading { done, total } => (
             match total {
-                Some(total) if *total > 0 => format!("téléchargement {} %", done * 100 / total),
-                _ => format!("téléchargement {}", fmt_bytes(*done)),
+                Some(total) if *total > 0 => format!("downloading {}%", done * 100 / total),
+                _ => format!("downloading {}", fmt_bytes(*done)),
             },
             th.warning,
         ),
-        Phase::Verifying => ("vérification".into(), th.warning),
-        Phase::Preparing => ("extraction du noyau".into(), th.running),
+        Phase::Verifying => ("verifying".into(), th.warning),
+        Phase::Preparing => ("extracting kernel".into(), th.running),
         Phase::Booting => ("boot…".into(), th.running),
         Phase::Running(stage) => (
             match stage {
                 Some(s) => format!("● {}", s.label()),
-                None => "● agent prêt".into(),
+                None => "● agent ready".into(),
             },
             th.running,
         ),
         Phase::Done(o) => {
             let mut label = match (o, t.result.as_ref().and_then(|r| r.exit_code())) {
-                (Outcome::Failure, Some(c)) => format!("✘ échec ({c})"),
-                (Outcome::Success, _) => "✔ succès".into(),
+                (Outcome::Failure, Some(c)) => format!("✘ failed ({c})"),
+                (Outcome::Success, _) => "✔ success".into(),
                 (o, _) => format!("✘ {}", o.label()),
             };
             if t.held && t.alive {
@@ -207,7 +207,7 @@ fn fmt_clock(d: Duration) -> String {
     format!("{:02}:{:02}", s / 60, s % 60)
 }
 
-/// Jauge horizontale avec huitièmes de bloc.
+/// Horizontal gauge with eighth blocks.
 fn gauge(ratio: f64, width: usize, color: Color, bg: Color) -> Vec<Span<'static>> {
     let ratio = ratio.clamp(0.0, 1.0);
     let eighths = (ratio * width as f64 * 8.0).round() as usize;
@@ -226,8 +226,8 @@ fn gauge(ratio: f64, width: usize, color: Color, bg: Color) -> Vec<Span<'static>
     ]
 }
 
-/// Graphe en caractères Braille (2 échantillons × 4 niveaux par cellule),
-/// aligné à droite sur les échantillons les plus récents.
+/// Graph in Braille characters (2 samples × 4 levels per cell), right-aligned
+/// on the most recent samples.
 pub fn braille(samples: &[f64], max: f64, width: usize, height: usize) -> Vec<String> {
     let cols = width * 2;
     let start = samples.len().saturating_sub(cols);
@@ -247,7 +247,7 @@ pub fn braille(samples: &[f64], max: f64, width: usize, height: usize) -> Vec<St
             let base = (height - 1 - row) * 4;
             let dots = level.saturating_sub(base).min(4);
             for d in 0..dots {
-                // Points de bas en haut : lignes 3, 2, 1, 0 de la cellule.
+                // Dots from bottom to top: rows 3, 2, 1, 0 of the cell.
                 let bit = match (x % 2, 3 - d) {
                     (0, 0) => 0x01,
                     (0, 1) => 0x02,
@@ -282,7 +282,7 @@ fn dashboard(f: &mut Frame, app: &mut App, area: Rect, focused: bool) {
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
-            format!("{} cible(s) ", visible.len()),
+            format!("{} target(s) ", visible.len()),
             Style::new().fg(app.theme.muted),
         ),
     ]);
@@ -291,7 +291,7 @@ fn dashboard(f: &mut Frame, app: &mut App, area: Rect, focused: bool) {
     f.render_widget(block, area);
     if visible.is_empty() {
         f.render_widget(
-            Paragraph::new("aucune cible pour ce filtre (f pour changer)")
+            Paragraph::new("no targets for this filter (f to change it)")
                 .style(Style::new().fg(app.theme.muted)),
             inner,
         );
@@ -361,7 +361,7 @@ fn card(f: &mut Frame, app: &App, idx: usize, rect: Rect) {
         Span::styled(t.image.clone(), Style::new().fg(th.accent)),
         Span::styled(" · ", muted),
         Span::styled(
-            t.kernel().unwrap_or("noyau ?").to_string(),
+            t.kernel().unwrap_or("kernel ?").to_string(),
             Style::new().fg(th.fg),
         ),
     ]));
@@ -379,7 +379,7 @@ fn card(f: &mut Frame, app: &App, idx: usize, rect: Rect) {
         Span::styled(if t.direct_kernel { "  direct" } else { "" }, muted),
     ]));
     let gauge_w = w.saturating_sub(14).max(4);
-    // 100 % par vCPU : une VM à 2 CPU saturée affiche 200 %.
+    // 100% per vCPU: a saturated 2-CPU VM shows 200%.
     let cpu_max = 100.0 * f64::from(t.cpus.max(1));
     let alive = t.alive;
     let cpu = if alive { t.metrics.cpu_percent } else { 0.0 };
@@ -454,8 +454,8 @@ fn highlight<'a>(text: &'a str, needle: Option<&str>, base: Style, hl: Style) ->
     };
     let lower = text.to_lowercase();
     let n = needle.to_lowercase();
-    // Correspondances sur la version minuscule, découpage sur l'original si
-    // les longueurs coïncident (ASCII), sinon ligne entière surlignée.
+    // Match on the lowercase version and slice the original if the lengths
+    // agree (ASCII); otherwise highlight the whole line.
     if lower.len() != text.len() {
         return if lower.contains(&n) {
             Line::from(Span::styled(text, hl))
@@ -484,7 +484,7 @@ fn logs(f: &mut Frame, app: &mut App, pane: usize, area: Rect, focused: bool) {
     let p = &mut app.panes[pane];
     p.scroll = p.scroll.min(max_scroll);
     let scroll = p.scroll;
-    let follow = if scroll == 0 { "suivi" } else { "défilement" };
+    let follow = if scroll == 0 { "following" } else { "scrolled" };
     let search = app.search.clone();
     let matches = search
         .as_ref()
@@ -496,13 +496,13 @@ fn logs(f: &mut Frame, app: &mut App, pane: usize, area: Rect, focused: bool) {
                 .filter(|l| l.text.to_lowercase().contains(&s))
                 .count()
         })
-        .map(|n| format!(" · « {} » : {n}", search.as_deref().unwrap_or("")))
+        .map(|n| format!(" · \"{}\": {n}", search.as_deref().unwrap_or("")))
         .unwrap_or_default();
     let title = target_title(
         app,
         pane,
         "logs",
-        format!("{total} lignes · {follow}{matches} "),
+        format!("{total} lines · {follow}{matches} "),
     );
     let block = pane_block(app, title, focused);
     let th = app.theme;
@@ -526,7 +526,7 @@ fn logs(f: &mut Frame, app: &mut App, pane: usize, area: Rect, focused: bool) {
     f.render_widget(Paragraph::new(lines).block(block), area);
 }
 
-/// Ligne logique du panneau rapport.
+/// Logical line of the report pane.
 pub enum ReportRow {
     Section {
         name: String,
@@ -576,11 +576,11 @@ pub fn report_rows(app: &App, pane: usize) -> Vec<ReportRow> {
                 }
                 match d {
                     SectionDiff::OnlyInA(_) => rows.push(ReportRow::Entry(Line::styled(
-                        "    - section absente ici",
+                        "    - section missing here",
                         Style::new().fg(th.failure),
                     ))),
                     SectionDiff::OnlyInB(_) => rows.push(ReportRow::Entry(Line::styled(
-                        "    + section absente de la référence",
+                        "    + section missing from the reference",
                         Style::new().fg(th.success),
                     ))),
                     SectionDiff::Changed { changes, .. } => {
@@ -639,9 +639,9 @@ fn report(f: &mut Frame, app: &mut App, pane: usize, area: Rect, focused: bool) 
     let diff_label = app
         .diff_with
         .filter(|&o| o != idx)
-        .map(|o| format!("diff contre {} (D pour quitter) ", app.targets[o].name))
-        .unwrap_or_else(|| "Entrée replier · d diff ".into());
-    let title = target_title(app, pane, "rapport", diff_label);
+        .map(|o| format!("diff against {} (D to leave) ", app.targets[o].name))
+        .unwrap_or_else(|| "Enter fold · d diff ".into());
+    let title = target_title(app, pane, "report", diff_label);
     let block = pane_block(app, title, focused);
     let height = area.height.saturating_sub(2) as usize;
     let th = app.theme;
@@ -655,8 +655,8 @@ fn report(f: &mut Frame, app: &mut App, pane: usize, area: Rect, focused: bool) 
     let (cursor, scroll) = (p.cursor, p.scroll);
     if rows.is_empty() {
         let msg = match &app.targets[idx].result {
-            Some(_) => "pas de rapport envprobe pour cette cible",
-            None => "rapport envprobe pas encore disponible",
+            Some(_) => "no envprobe report for this target",
+            None => "envprobe report not available yet",
         };
         f.render_widget(
             Paragraph::new(msg)
@@ -700,11 +700,11 @@ fn console(f: &mut Frame, app: &mut App, pane: usize, area: Rect, focused: bool)
     let idx = app.pane_target(pane);
     let insert = focused && app.mode == Mode::Insert;
     let extra = if insert {
-        "saisie active · Ctrl+] pour sortir ".to_string()
+        "typing · Ctrl+] to leave ".to_string()
     } else if app.targets[idx].alive {
-        "i pour saisir ".to_string()
+        "i to type ".to_string()
     } else {
-        "VM arrêtée ".to_string()
+        "VM stopped ".to_string()
     };
     let title = target_title(app, pane, "console", extra);
     let mut block = pane_block(app, title, focused);
@@ -739,7 +739,7 @@ fn palette(f: &mut Frame, app: &App, input: &str, selected: usize) {
     let block = Block::bordered()
         .border_type(BorderType::Rounded)
         .border_style(Style::new().fg(th.accent))
-        .title(" commandes ");
+        .title(" commands ");
     let inner = block.inner(rect);
     f.render_widget(block, rect);
     let mut lines = vec![Line::from(vec![
@@ -768,33 +768,27 @@ fn palette(f: &mut Frame, app: &App, input: &str, selected: usize) {
 }
 
 const HELP: &[(&str, &str)] = &[
-    (
-        "h j k l / flèches",
-        "changer de cible (dashboard) ou défiler",
-    ),
-    ("Tab, Ctrl+W w", "panneau suivant"),
-    ("Ctrl+W h/j/k/l", "focus dans une direction"),
-    (
-        "Ctrl+W s / v",
-        "découper le panneau (dessous / côte à côte)",
-    ),
-    ("Ctrl+W q", "fermer le panneau"),
-    ("Ctrl+W < > + -", "redimensionner"),
-    ("1…9", "changer de workspace"),
-    ("D L R C", "vue dashboard, logs, rapport, console"),
-    ("espace", "pause / reprise (QMP stop / cont)"),
-    ("r / x", "relancer / tuer la cible"),
-    ("c, puis i", "ouvrir la console série / saisir dedans"),
-    ("Ctrl+]", "quitter la saisie console"),
-    ("/  n  N", "chercher dans les logs, suivant, précédent"),
-    ("g / G", "début / fin (suivi)"),
-    ("Entrée", "replier une section du rapport"),
-    ("d / D", "diff contre une autre cible / quitter le diff"),
-    ("p", "épingler le panneau sur la cible"),
-    ("f", "filtrer : toutes, en cours, échecs, terminées"),
-    (": ou Ctrl+P", "palette de commandes"),
-    ("souris", "clic : sélection et focus, molette : défilement"),
-    ("q", "quitter (deux fois si des VM tournent)"),
+    ("h j k l / arrows", "change target (dashboard) or scroll"),
+    ("Tab, Ctrl+W w", "next pane"),
+    ("Ctrl+W h/j/k/l", "focus in a direction"),
+    ("Ctrl+W s / v", "split the pane (below / side by side)"),
+    ("Ctrl+W q", "close the pane"),
+    ("Ctrl+W < > + -", "resize"),
+    ("1…9", "switch workspace"),
+    ("D L R C", "view: dashboard, logs, report, console"),
+    ("space", "pause / resume (QMP stop / cont)"),
+    ("r / x", "restart / kill the target"),
+    ("c, then i", "open the serial console / type in it"),
+    ("Ctrl+]", "leave console input"),
+    ("/  n  N", "search the logs, next, previous"),
+    ("g / G", "top / bottom (follow)"),
+    ("Enter", "fold a report section"),
+    ("d / D", "diff against another target / leave the diff"),
+    ("p", "pin the pane to the target"),
+    ("f", "filter: all, running, failed, finished"),
+    (": or Ctrl+P", "command palette"),
+    ("mouse", "click: select and focus, wheel: scroll"),
+    ("q", "quit (twice if VMs are running)"),
 ];
 
 fn help(f: &mut Frame, app: &App) {
@@ -804,7 +798,7 @@ fn help(f: &mut Frame, app: &App) {
     let block = Block::bordered()
         .border_type(BorderType::Rounded)
         .border_style(Style::new().fg(th.accent))
-        .title(" aide · Échap pour fermer ");
+        .title(" help · Esc to close ");
     let lines: Vec<Line> = HELP
         .iter()
         .map(|(k, v)| {
@@ -824,13 +818,13 @@ mod tests {
     #[test]
     fn braille_graph() {
         let rows = braille(&[0.0, 100.0], 100.0, 1, 1);
-        // Colonne gauche vide, colonne droite pleine.
+        // Left column empty, right column full.
         assert_eq!(rows, vec!["⢸".to_string()]);
         let rows = braille(&[100.0, 100.0, 50.0, 50.0], 100.0, 2, 2);
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0], "⣿⠀");
         assert_eq!(rows[1], "⣿⣿");
-        // Moins d'échantillons que de place : alignés à droite.
+        // Fewer samples than room: right-aligned.
         assert_eq!(braille(&[100.0], 100.0, 2, 1), vec!["⠀⢸".to_string()]);
     }
 

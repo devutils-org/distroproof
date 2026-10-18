@@ -1,10 +1,9 @@
-//! Ce qui est injecté dans l'invité (seed cloud-init, disque payload) et ce
-//! qui en revient (disque de sortie).
+//! What goes into the guest (cloud-init seed, payload disk) and what comes
+//! back (output disk).
 //!
-//! Les disques payload et sortie sont des archives tar brutes posées sur un
-//! disque virtio : l'invité les lit et les écrit avec `tar -f /dev/vdX`, sans
-//! système de fichiers ni module noyau particulier (9p et virtiofs manquent
-//! sur les noyaux RHEL).
+//! The payload and output disks are raw tar archives on a virtio disk: the
+//! guest reads and writes them with `tar -f /dev/vdX`, with no filesystem and
+//! no special kernel module (RHEL kernels lack 9p and virtiofs).
 
 use std::fs::{self, File};
 use std::io::{self, Read};
@@ -15,10 +14,10 @@ use crate::model::VmSpec;
 
 pub const AGENT: &str = include_str!("agent.sh");
 
-/// Taille du disque de sortie (fichier creux) : sorties, rapport, noyau extrait.
+/// Size of the output disk (sparse file): outputs, report, extracted kernel.
 pub const OUTPUT_DISK_BYTES: u64 = 1 << 30;
 
-/// Seed NoCloud : cloud-init extrait le payload puis lance l'agent.
+/// NoCloud seed: cloud-init extracts the payload, then starts the agent.
 pub fn seed_iso(instance: &str) -> Vec<u8> {
     let user_data = r#"#cloud-config
 runcmd:
@@ -30,7 +29,7 @@ runcmd:
           mkdir -p /distroproof && tar -xf "/dev/${d##*/}" -C /distroproof && exec sh /distroproof/agent.sh
         fi
       done
-      echo "@ FATAL disque payload introuvable" > /dev/ttyS1
+      echo "@ FATAL payload disk not found" > /dev/ttyS1
 "#;
     let meta_data = format!("instance-id: {instance}\nlocal-hostname: {instance}\n");
     iso::build(
@@ -42,7 +41,7 @@ runcmd:
     )
 }
 
-/// Quote une valeur pour un script POSIX.
+/// Quotes a value for a POSIX script.
 pub fn shell_quote(s: &str) -> String {
     if !s.is_empty()
         && s.chars()
@@ -58,14 +57,14 @@ pub struct Payload<'a> {
     pub spec: &'a VmSpec,
     pub envprobe: &'a Path,
     pub extract_kernel: bool,
-    /// Boot de préparation : aucune étape, seulement l'extraction du noyau.
+    /// Preparation boot: no stages, only kernel extraction.
     pub prepare_only: bool,
 }
 
 impl Payload<'_> {
-    /// Écrit l'archive payload dans `path`.
+    /// Writes the payload archive to `path`.
     pub fn write(&self, path: &Path) -> Result<(), String> {
-        let file = File::create(path).map_err(|e| format!("{} : {e}", path.display()))?;
+        let file = File::create(path).map_err(|e| format!("{}: {e}", path.display()))?;
         let mut tar = tar::Builder::new(file);
         tar.follow_symlinks(false);
         let spec = self.spec;
@@ -126,7 +125,7 @@ impl Payload<'_> {
                 .map_err(|e| e.to_string())?;
         }
         tar.append_path_with_name(self.envprobe, "bin/envprobe")
-            .map_err(|e| format!("{} : {e}", self.envprobe.display()))?;
+            .map_err(|e| format!("{}: {e}", self.envprobe.display()))?;
 
         let mut dir = tar::Header::new_gnu();
         dir.set_entry_type(tar::EntryType::Directory);
@@ -137,11 +136,11 @@ impl Payload<'_> {
             .map_err(|e| e.to_string())?;
         if let (Some(workdir), true) = (&spec.workdir, run_steps) {
             for rel in work_files(workdir, &spec.exclude, &spec.include)
-                .map_err(|e| format!("{} : {e}", workdir.display()))?
+                .map_err(|e| format!("{}: {e}", workdir.display()))?
             {
                 let full = workdir.join(&rel);
                 tar.append_path_with_name(&full, Path::new("work").join(&rel))
-                    .map_err(|e| format!("{} : {e}", full.display()))?;
+                    .map_err(|e| format!("{}: {e}", full.display()))?;
             }
         }
         tar.into_inner()
@@ -154,7 +153,7 @@ fn script(body: &str) -> Vec<u8> {
     format!("#!/bin/sh\n{body}\n").into_bytes()
 }
 
-/// `*` et `?` sans traverser `/`.
+/// `*` and `?` without crossing `/`.
 fn glob(pat: &[u8], s: &[u8]) -> bool {
     match (pat.first(), s.first()) {
         (None, None) => true,
@@ -167,7 +166,7 @@ fn glob(pat: &[u8], s: &[u8]) -> bool {
     }
 }
 
-/// Un motif désigne un chemin ou l'un de ses parents.
+/// A pattern matches a path or one of its parents.
 fn matches(pattern: &str, rel: &Path) -> bool {
     let pattern = pattern.trim_start_matches("./").trim_end_matches('/');
     let mut prefix = PathBuf::new();
@@ -180,8 +179,8 @@ fn matches(pattern: &str, rel: &Path) -> bool {
     false
 }
 
-/// Fichiers du répertoire de travail à copier, chemins relatifs triés.
-/// `include` l'emporte sur `exclude`.
+/// Files of the working directory to copy, as sorted relative paths.
+/// `include` wins over `exclude`.
 pub fn work_files(root: &Path, exclude: &[String], include: &[String]) -> io::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     let mut stack = vec![PathBuf::new()];
@@ -209,7 +208,7 @@ pub fn work_files(root: &Path, exclude: &[String], include: &[String]) -> io::Re
     Ok(out)
 }
 
-/// Contenu du disque de sortie écrit par l'agent.
+/// Contents of the output disk written by the agent.
 #[derive(Debug, Default)]
 pub struct GuestOutput {
     files: Vec<(String, Vec<u8>)>,

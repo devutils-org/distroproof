@@ -1,5 +1,5 @@
-//! TUI de monitoring de la matrice, branchée uniquement sur le bus
-//! d'événements : elle lit les `Event` et envoie des `Control`.
+//! Matrix monitoring TUI, plugged only into the event bus: it reads
+//! `Event`s and sends `Control`s.
 
 mod input;
 mod layout;
@@ -20,11 +20,11 @@ use crate::model::VmSpec;
 
 pub use state::App;
 
-/// Intervalle minimal entre deux rendus : au plus 30 images par seconde,
-/// quel que soit le débit des consoles série.
+/// Minimum interval between two renders: at most 30 frames per second,
+/// whatever the throughput of the serial consoles.
 const FRAME: Duration = Duration::from_millis(33);
 
-/// Lance la TUI jusqu'à ce que l'utilisateur quitte.
+/// Runs the TUI until the user quits.
 pub async fn run(
     specs: Vec<(VmSpec, usize)>,
     groups: Vec<String>,
@@ -40,8 +40,8 @@ pub async fn run(
     let mut terminal = ratatui::try_init()?;
     execute!(io::stdout(), EnableMouseCapture)?;
 
-    // Lecture du terminal dans un thread dédié : la boucle tokio ne bloque
-    // jamais, même pendant les boots.
+    // The terminal is read in a dedicated thread: the tokio loop never
+    // blocks, even during boots.
     let (input_tx, mut input_rx) = mpsc::unbounded_channel();
     std::thread::spawn(move || {
         while let Ok(ev) = event::read() {
@@ -68,13 +68,13 @@ pub async fn run(
             ev = bus.recv(), if bus_open => match ev {
                 Some(ev) => {
                     app.apply(ev);
-                    // Vide le reste du flux avant de redessiner.
+                    // Drain the rest of the stream before redrawing.
                     while let Ok(ev) = bus.try_recv() {
                         app.apply(ev);
                     }
                     dirty = true;
                 }
-                // Plus d'émetteur : l'affichage reste jusqu'à `q`.
+                // No senders left: the display stays until `q`.
                 None => bus_open = false,
             },
             ev = input_rx.recv() => {
@@ -186,7 +186,7 @@ mod tests {
                 "debian-12",
                 VmEvent::Output {
                     stream: Stream::Stdout,
-                    line: format!("ligne {i} du programme"),
+                    line: format!("program line {i}"),
                 },
             ));
         }
@@ -248,13 +248,13 @@ mod tests {
         let small = render(&mut app, 80, 24);
         assert!(small.contains("distroproof"));
         assert!(small.contains("debian-12"));
-        assert!(small.contains("commande"), "{small}");
-        assert!(small.contains("ligne 49 du programme"), "{small}");
+        assert!(small.contains("command"), "{small}");
+        assert!(small.contains("program line 49"), "{small}");
         let big = render(&mut app, 200, 60);
-        for name in ["rocky-9", "fedora", "alpine", "téléchargement 25 %"] {
-            assert!(big.contains(name), "{name} absent :\n{big}");
+        for name in ["rocky-9", "fedora", "alpine", "downloading 25%"] {
+            assert!(big.contains(name), "{name} missing:\n{big}");
         }
-        // Très petit terminal : pas de panique.
+        // Tiny terminal: no panic.
         render(&mut app, 20, 5);
     }
 
@@ -262,7 +262,7 @@ mod tests {
     fn keys_drive_views_and_controls() {
         let (mut app, mut rxs) = app();
         render(&mut app, 120, 40);
-        // Sélection et pause de la cible.
+        // Select and pause the target.
         assert_eq!(app.selected, 0);
         key(&mut app, KeyCode::Char(' '), KeyModifiers::NONE);
         assert!(matches!(rxs[0].try_recv(), Ok(Control::Pause)));
@@ -273,7 +273,7 @@ mod tests {
         key(&mut app, KeyCode::Char('x'), KeyModifiers::NONE);
         assert!(matches!(rxs[1].try_recv(), Ok(Control::Kill)));
 
-        // Palette : diff du rapport d'alpine contre arch.
+        // Palette: diff alpine's report against arch.
         app.selected = 6;
         chars(&mut app, ":diff arch");
         key(&mut app, KeyCode::Enter, KeyModifiers::NONE);
@@ -281,9 +281,9 @@ mod tests {
         assert_eq!(app.diff_with, Some(5));
         assert_eq!(app.panes[app.focused_pane()].view, View::Report);
         let screen = render(&mut app, 120, 40);
-        assert!(screen.contains("diff contre arch"), "{screen}");
+        assert!(screen.contains("diff against arch"), "{screen}");
 
-        // Tiling : découpe, redimensionnement, fermeture.
+        // Tiling: split, resize, close.
         let before = app.workspace().root.leaves().len();
         key(&mut app, KeyCode::Char('w'), KeyModifiers::CONTROL);
         chars(&mut app, "v");
@@ -294,7 +294,7 @@ mod tests {
         chars(&mut app, "q");
         assert_eq!(app.workspace().root.leaves().len(), before);
 
-        // Console interactive : la saisie part vers la VM.
+        // Interactive console: input goes to the VM.
         app.selected = 0;
         key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE);
         assert_eq!(app.panes[app.focused_pane()].view, View::Console);
@@ -312,21 +312,21 @@ mod tests {
         let screen = render(&mut app, 120, 40);
         assert!(screen.contains("login:"), "{screen}");
 
-        // Recherche dans les logs.
+        // Search the logs.
         key(&mut app, KeyCode::Char('L'), KeyModifiers::NONE);
-        chars(&mut app, "/ligne 3");
+        chars(&mut app, "/line 3");
         key(&mut app, KeyCode::Enter, KeyModifiers::NONE);
-        assert_eq!(app.search.as_deref(), Some("ligne 3"));
+        assert_eq!(app.search.as_deref(), Some("line 3"));
         let screen = render(&mut app, 120, 40);
-        assert!(screen.contains("« ligne 3 » : 11"), "{screen}");
+        assert!(screen.contains("\"line 3\": 11"), "{screen}");
 
-        // Filtre échecs : seule alpine reste.
+        // Failed filter: only alpine is left.
         key(&mut app, KeyCode::Char('1'), KeyModifiers::NONE);
         chars(&mut app, ":filter failed");
         key(&mut app, KeyCode::Enter, KeyModifiers::NONE);
         assert_eq!(app.visible(), vec![6]);
 
-        // Quitter : confirmation tant que des VM tournent.
+        // Quit: confirmation while VMs are running.
         key(&mut app, KeyCode::Char('q'), KeyModifiers::NONE);
         assert!(!app.quit);
         key(&mut app, KeyCode::Char('q'), KeyModifiers::NONE);

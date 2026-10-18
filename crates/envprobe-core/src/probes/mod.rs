@@ -1,4 +1,4 @@
-//! Une sonde par catégorie, dans l'ordre d'affichage du rapport.
+//! One probe per category, in report display order.
 
 pub mod bpf;
 pub mod btf;

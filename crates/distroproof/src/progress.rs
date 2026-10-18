@@ -1,4 +1,4 @@
-//! Consommateurs non interactifs du bus d'événements : texte et JSON lignes.
+//! Non-interactive consumers of the event bus: text and JSON lines.
 
 use std::collections::HashMap;
 use std::io::{self, Write};
@@ -9,16 +9,16 @@ use crate::model::Outcome;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum Progress {
-    /// Lignes lisibles sur stderr.
+    /// Human-readable lines on stderr.
     Text,
-    /// Un événement JSON par ligne sur stderr.
+    /// One JSON event per line on stderr.
     Json,
-    /// Rien.
+    /// Nothing.
     None,
 }
 
 pub fn fmt_bytes(n: u64) -> String {
-    const UNITS: [&str; 5] = ["o", "Kio", "Mio", "Gio", "Tio"];
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
     let mut v = n as f64;
     let mut unit = 0;
     while v >= 1024.0 && unit < UNITS.len() - 1 {
@@ -26,7 +26,7 @@ pub fn fmt_bytes(n: u64) -> String {
         unit += 1;
     }
     if unit == 0 {
-        format!("{n} o")
+        format!("{n} B")
     } else {
         format!("{v:.1} {}", UNITS[unit])
     }
@@ -40,7 +40,7 @@ pub fn fmt_ms(ms: u64) -> String {
     }
 }
 
-/// Lit le flux jusqu'à sa fermeture et l'affiche sur stderr.
+/// Reads the stream until it closes and prints it on stderr.
 pub async fn consume(mut rx: EventRx, mode: Progress, verbose: bool) {
     let mut last_download: HashMap<String, (Instant, u64)> = HashMap::new();
     while let Some(event) = rx.recv().await {
@@ -50,7 +50,7 @@ pub async fn consume(mut rx: EventRx, mode: Progress, verbose: bool) {
             Progress::Text => text_line(&event, verbose, &mut last_download),
         };
         if res.is_err() {
-            // stderr fermé : on continue de vider le flux sans rien écrire.
+            // stderr closed: keep draining the stream without writing anything.
             continue;
         }
     }
@@ -74,7 +74,7 @@ fn text_line(
         VmEvent::Queued | VmEvent::Console(_) | VmEvent::Metrics(_) | VmEvent::Stopped => {
             return Ok(())
         }
-        VmEvent::Holding => "VM gardée : shell root sur la console série".into(),
+        VmEvent::Holding => "VM kept up: root shell on the serial console".into(),
         VmEvent::Info { message } => message.clone(),
         VmEvent::Downloading { done, total } => {
             let now = Instant::now();
@@ -88,33 +88,33 @@ fn text_line(
             *entry = (now, *done);
             match total {
                 Some(total) if *total > 0 => format!(
-                    "téléchargement {:>3} % ({} / {})",
+                    "downloading {:>3}% ({} / {})",
                     done * 100 / total,
                     fmt_bytes(*done),
                     fmt_bytes(*total)
                 ),
-                _ => format!("téléchargement {}", fmt_bytes(*done)),
+                _ => format!("downloading {}", fmt_bytes(*done)),
             }
         }
-        VmEvent::Verifying => "vérification du checksum".into(),
+        VmEvent::Verifying => "verifying checksum".into(),
         VmEvent::ImageReady { file, cached } => {
             format!("image {file}{}", if *cached { " (cache)" } else { "" })
         }
-        VmEvent::Preparing => "boot de préparation : extraction du noyau".into(),
+        VmEvent::Preparing => "preparation boot: extracting the kernel".into(),
         VmEvent::Booting {
             pid, direct_kernel, ..
         } => format!(
-            "démarrage de la VM (pid {pid}, {})",
+            "starting the VM (pid {pid}, {})",
             if *direct_kernel {
-                "boot direct sur le noyau de la distro"
+                "direct boot on the distro kernel"
             } else {
-                "boot sur le disque"
+                "booting from disk"
             }
         ),
-        VmEvent::Booted { boot_ms } => format!("agent prêt, boot en {}", fmt_ms(*boot_ms)),
-        VmEvent::Stage { stage } => format!("étape {}", stage.label()),
+        VmEvent::Booted { boot_ms } => format!("agent ready, booted in {}", fmt_ms(*boot_ms)),
+        VmEvent::Stage { stage } => format!("stage {}", stage.label()),
         VmEvent::StageExited { stage, code } => {
-            format!("{} terminé (code {code})", stage.label())
+            format!("{} finished (code {code})", stage.label())
         }
         VmEvent::Output { stream, line } => {
             if !verbose {
@@ -123,8 +123,8 @@ fn text_line(
             let sep = if *stream == Stream::Stderr { "!" } else { "|" };
             format!("{sep} {line}")
         }
-        VmEvent::Paused => "en pause".into(),
-        VmEvent::Resumed => "reprise".into(),
+        VmEvent::Paused => "paused".into(),
+        VmEvent::Resumed => "resumed".into(),
         VmEvent::Finished(r) => {
             let boot = r
                 .boot_ms
@@ -132,23 +132,23 @@ fn text_line(
                 .unwrap_or_default();
             let kernel = r
                 .kernel_release()
-                .map(|k| format!(", noyau {k}"))
+                .map(|k| format!(", kernel {k}"))
                 .unwrap_or_default();
             let detail = match r.outcome {
                 Outcome::Failure => r
                     .exit_code()
                     .map(|c| format!(" (code {c})"))
-                    .or_else(|| r.error.as_ref().map(|e| format!(" : {e}")))
+                    .or_else(|| r.error.as_ref().map(|e| format!(": {e}")))
                     .unwrap_or_default(),
                 Outcome::Error | Outcome::TimedOut | Outcome::Killed => r
                     .error
                     .as_ref()
-                    .map(|e| format!(" : {e}"))
+                    .map(|e| format!(": {e}"))
                     .unwrap_or_default(),
                 Outcome::Success => String::new(),
             };
             format!(
-                "{}{detail} en {}{boot}{kernel}",
+                "{}{detail} in {}{boot}{kernel}",
                 r.outcome.label(),
                 fmt_ms(r.duration_ms)
             )

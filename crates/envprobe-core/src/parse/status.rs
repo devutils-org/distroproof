@@ -20,7 +20,7 @@ impl Status {
         self.fields.get(key).map(String::as_str)
     }
 
-    /// Identifiants réel, effectif, sauvegardé et fs (ligne `Uid:`).
+    /// Real, effective, saved and fs IDs (`Uid:` line).
     pub fn uids(&self) -> Option<[u32; 4]> {
         ids(self.get("Uid")?)
     }
@@ -33,7 +33,7 @@ impl Status {
         u64::from_str_radix(self.get("CapEff")?, 16).ok()
     }
 
-    /// 0 : désactivé, 1 : strict, 2 : filtre.
+    /// 0: disabled, 1: strict, 2: filter.
     pub fn seccomp(&self) -> Option<u32> {
         self.get("Seccomp")?.parse().ok()
     }
@@ -52,7 +52,7 @@ fn ids(value: &str) -> Option<[u32; 4]> {
     Some(out)
 }
 
-/// `/proc/<pid>/uid_map` du user namespace initial : `0 0 4294967295`.
+/// `/proc/<pid>/uid_map` of the initial user namespace: `0 0 4294967295`.
 pub fn is_initial_uid_map(map: &str) -> bool {
     let lines: Vec<Vec<&str>> = map
         .lines()

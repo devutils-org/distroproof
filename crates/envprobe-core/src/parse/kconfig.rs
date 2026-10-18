@@ -1,11 +1,11 @@
-//! Configuration du noyau (`/proc/config.gz`, `/boot/config-*`).
+//! Kernel configuration (`/proc/config.gz`, `/boot/config-*`).
 
 use std::collections::BTreeMap;
 use std::io::{self, Read};
 
 use flate2::read::GzDecoder;
 
-/// Associe chaque option à sa valeur ; `# CONFIG_X is not set` donne `n`.
+/// Maps each option to its value; `# CONFIG_X is not set` gives `n`.
 pub fn parse(text: &str) -> BTreeMap<String, String> {
     let mut map = BTreeMap::new();
     for line in text.lines() {

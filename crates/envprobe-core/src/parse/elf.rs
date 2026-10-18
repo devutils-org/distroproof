@@ -1,4 +1,4 @@
-//! Lecture minimale d'un en-tête ELF : interpréteur (`PT_INTERP`).
+//! Minimal ELF header reader: the interpreter (`PT_INTERP`).
 
 const PT_INTERP: u32 = 3;
 
@@ -40,7 +40,7 @@ impl Reader<'_> {
     }
 }
 
-/// Chemin de l'interpréteur dynamique, `None` pour un binaire statique ou un fichier non ELF.
+/// Path of the dynamic interpreter, `None` for a static binary or a non-ELF file.
 pub fn interpreter(data: &[u8]) -> Option<String> {
     if data.get(..4)? != b"\x7fELF" {
         return None;
@@ -84,7 +84,7 @@ pub fn interpreter(data: &[u8]) -> Option<String> {
 mod tests {
     use super::*;
 
-    /// ELF64 little-endian avec un seul en-tête de programme PT_INTERP.
+    /// Little-endian ELF64 with a single PT_INTERP program header.
     fn elf64(interp: Option<&str>) -> Vec<u8> {
         let mut d = vec![0u8; 64 + 56];
         d[..4].copy_from_slice(b"\x7fELF");

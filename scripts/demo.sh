@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# Démonstration de distroproof : chaque bloc lance le vrai binaire sur de
-# vraies VM et montre la commande puis sa sortie. Rien n'est simulé.
+# distroproof demo: each block runs the real binary on real VMs and shows the
+# command, then its output. Nothing is simulated.
 #
-#   scripts/demo.sh           les cinq actes non interactifs (~1 min, cache chaud)
-#   scripts/demo.sh 3         un seul acte
-#   scripts/demo.sh --list    les actes, sans rien lancer
+#   scripts/demo.sh           the five non-interactive acts (~1 min, warm cache)
+#   scripts/demo.sh 3         a single act
+#   scripts/demo.sh --list    the acts, without running anything
 #
-# L'acte 6 (la TUI) est interactif : voir docs/how-to-use/demo.md.
-# Prérequis : qemu-system-x86_64, qemu-img, curl, /dev/kvm, OVMF pour
-# rocky-9. Le premier lancement télécharge les images (~3 Gio).
-# Rien n'est écrit hors d'un répertoire temporaire et du cache d'images.
+# Act 6 (the TUI) is interactive: see docs/how-to-use/demo.md.
+# Requirements: qemu-system-x86_64, qemu-img, curl, /dev/kvm, OVMF for
+# rocky-9. The first run downloads the images (~3 GiB).
+# Nothing is written outside a temporary directory and the image cache.
 set -u
 
 ACTS=(
-    "1|Le catalogue et le cache"
-    "2|Le vrai noyau de chaque distro"
-    "3|Deux distros, un diff"
-    "4|Une matrice déclarative"
-    "5|Pourquoi ça casse"
+    "1|The catalog and the cache"
+    "2|Each distro's real kernel"
+    "3|Two distros, one diff"
+    "4|A declarative matrix"
+    "5|Why it breaks"
 )
 
 case "${1:-}" in
@@ -34,11 +34,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="${BINARY:-$ROOT/target/x86_64-unknown-linux-musl/release/distroproof}"
 ENVPROBE="$(dirname "$BIN")/envprobe"
 if [ ! -x "$BIN" ] || [ ! -x "$ENVPROBE" ]; then
-    echo "binaires absents : cargo build --release --target x86_64-unknown-linux-musl" >&2
+    echo "binaries missing: cargo build --release --target x86_64-unknown-linux-musl" >&2
     exit 2
 fi
 if ! command -v "${DISTROPROOF_QEMU:-qemu-system-x86_64}" >/dev/null; then
-    echo "QEMU introuvable : installez qemu (Arch : qemu-base edk2-ovmf)" >&2
+    echo "QEMU not found: install qemu (Arch: qemu-base edk2-ovmf)" >&2
     exit 2
 fi
 
@@ -50,11 +50,11 @@ bold=''; dim=''; reset=''
 if [ -t 1 ]; then bold=$'\033[1m'; dim=$'\033[2m'; reset=$'\033[0m'; fi
 
 act() {
-    printf '\n%sActe %s — %s%s\n' "$bold" "$1" "$2" "$reset"
-    printf '%s%s%s\n' "$dim" "$(printf '─%.0s' $(seq 1 $((${#2} + 9))))" "$reset"
+    printf '\n%sAct %s — %s%s\n' "$bold" "$1" "$2" "$reset"
+    printf '%s%s%s\n' "$dim" "$(printf '─%.0s' $(seq 1 $((${#2} + 8))))" "$reset"
 }
 
-# Montre la commande telle qu'on la taperait, puis sa sortie indentée.
+# Shows the command as one would type it, then its indented output.
 run() {
     local shown=''
     for a in "$@"; do
@@ -70,12 +70,12 @@ run() {
 wanted() { [ -z "$ONLY" ] || [ "$ONLY" = "$1" ]; }
 
 if wanted 1; then
-    act 1 "Le catalogue et le cache"
+    act 1 "The catalog and the cache"
     run "$BIN" images
 fi
 
 if wanted 2; then
-    act 2 "Le vrai noyau de chaque distro"
+    act 2 "Each distro's real kernel"
     run uname -r
     for t in rocky-8 rocky-9 alpine; do
         run "$BIN" run --target "$t" --progress none -- uname -r
@@ -84,7 +84,7 @@ if wanted 2; then
 fi
 
 if wanted 3; then
-    act 3 "Deux distros, un diff"
+    act 3 "Two distros, one diff"
     "$BIN" run --target debian-12 --progress none -- envprobe --json >"$SCRATCH/debian.json"
     "$BIN" run --target alpine --progress none -- envprobe --json >"$SCRATCH/alpine.json"
     printf '\n%s$ distroproof run --target debian-12 -- envprobe --json > debian.json%s\n' "$dim" "$reset"
@@ -96,15 +96,15 @@ if wanted 3; then
 fi
 
 if wanted 4; then
-    act 4 "Une matrice déclarative"
+    act 4 "A declarative matrix"
     run "$BIN" check
-    printf '[[target]]\nname = "rhel7"\nimage = "rocky-7"\n' >"$SCRATCH/faux.toml"
-    run "$BIN" up -f "$SCRATCH/faux.toml"
+    printf '[[target]]\nname = "rhel7"\nimage = "rocky-7"\n' >"$SCRATCH/bogus.toml"
+    run "$BIN" up -f "$SCRATCH/bogus.toml"
     run "$BIN" up --no-tui --progress none --jobs 5
 fi
 
 if wanted 5; then
-    act 5 "Pourquoi ça casse"
+    act 5 "Why it breaks"
     run cat examples/require-btf/require-btf.sh
     run "$BIN" up -f examples/require-btf/distroproof.toml --no-tui --progress none \
         --markdown "$SCRATCH/summary.md"

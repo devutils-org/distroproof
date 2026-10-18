@@ -1,5 +1,5 @@
-# Les cibles musl embarquent leur CRT (self-contained) : rust-lld suffit pour
-# lier un binaire statique, y compris en compilation croisée depuis arm64.
+# musl targets ship their own CRT (self-contained): rust-lld is enough to link
+# a static binary, including when cross-compiling from arm64.
 [target.x86_64-unknown-linux-musl]
 linker = "rust-lld"
 

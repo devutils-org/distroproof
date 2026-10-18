@@ -1,8 +1,8 @@
-//! Écriture d'une image ISO 9660 minimale avec extension Joliet.
+//! Writes a minimal ISO 9660 image with the Joliet extension.
 //!
-//! Sert uniquement au seed cloud-init (NoCloud) : quelques petits fichiers à
-//! la racine et un label de volume `cidata`. Joliet conserve les noms en
-//! minuscules (`user-data`, `meta-data`), que Linux préfère à la table ISO.
+//! Only used for the cloud-init (NoCloud) seed: a few small files at the root
+//! and a `cidata` volume label. Joliet keeps lowercase names (`user-data`,
+//! `meta-data`), which Linux prefers over the ISO table.
 
 const SECTOR: usize = 2048;
 
@@ -18,7 +18,7 @@ fn both32(v: u32) -> [u8; 8] {
     [le[0], le[1], le[2], le[3], be[0], be[1], be[2], be[3]]
 }
 
-/// Encodage des noms : ISO (a-characters en majuscules) ou Joliet (UCS-2 BE).
+/// Name encoding: ISO (uppercase a-characters) or Joliet (UCS-2 BE).
 #[derive(Clone, Copy)]
 enum Names {
     Iso,
@@ -79,7 +79,7 @@ fn dir_record(extent: u32, size: u32, is_dir: bool, id: &[u8]) -> Vec<u8> {
     r[0] = len as u8;
     r[2..10].copy_from_slice(&both32(extent));
     r[10..18].copy_from_slice(&both32(size));
-    // 1er janvier 2000, UTC.
+    // January 1st, 2000, UTC.
     r[18..25].copy_from_slice(&[100, 1, 1, 0, 0, 0, 0]);
     r[25] = if is_dir { 2 } else { 0 };
     r[28..32].copy_from_slice(&both16(1));
@@ -124,7 +124,7 @@ fn volume_descriptor(
     d[40..72].copy_from_slice(&names.text(label, 32));
     d[80..88].copy_from_slice(&both32(total));
     if let Names::Joliet = names {
-        // Séquence d'échappement UCS-2 niveau 3.
+        // UCS-2 level 3 escape sequence.
         d[88..91].copy_from_slice(b"%/E");
     }
     d[120..124].copy_from_slice(&both16(1));
@@ -142,7 +142,7 @@ fn volume_descriptor(
         let len = range.len();
         d[range].copy_from_slice(&names.text("", len));
     }
-    // Dates « non précisées » : seize chiffres zéro et fuseau 0.
+    // "Not specified" dates: sixteen zero digits and time zone 0.
     for start in [813, 830, 847, 864] {
         d[start..start + 16].copy_from_slice(b"0000000000000000");
     }
@@ -157,21 +157,18 @@ fn root_dir(names: Names, root: u32, files: &[(String, u32, u32)]) -> Vec<u8> {
     for (name, extent, size) in files {
         dir.extend(dir_record(*extent, *size, false, &names.file_id(name)));
     }
-    assert!(
-        dir.len() <= SECTOR,
-        "trop de fichiers pour un seed cloud-init"
-    );
+    assert!(dir.len() <= SECTOR, "too many files for a cloud-init seed");
     dir.resize(SECTOR, 0);
     dir
 }
 
-/// Construit une ISO contenant `files` à la racine.
+/// Builds an ISO holding `files` at its root.
 pub fn build(label: &str, files: &[(&str, &[u8])]) -> Vec<u8> {
     let mut files: Vec<(&str, &[u8])> = files.to_vec();
     files.sort_by(|a, b| a.0.cmp(b.0));
 
-    // 0-15 zone système, 16 PVD, 17 SVD Joliet, 18 terminateur,
-    // 19-22 tables de chemins, 23-24 répertoires racine, puis les données.
+    // 0-15 system area, 16 PVD, 17 Joliet SVD, 18 terminator,
+    // 19-22 path tables, 23-24 root directories, then the data.
     let (pvd, svd, term) = (16u32, 17u32, 18u32);
     let (iso_l, iso_m, jol_l, jol_m) = (19u32, 20u32, 21u32, 22u32);
     let (iso_root, jol_root) = (23u32, 24u32);
@@ -228,7 +225,7 @@ mod tests {
         assert_eq!(&img[16 * SECTOR + 40..16 * SECTOR + 46], b"cidata");
         let total = u32::from_le_bytes(img[16 * SECTOR + 80..16 * SECTOR + 84].try_into().unwrap());
         assert_eq!(total as usize * SECTOR, img.len());
-        // meta-data trié avant user-data : secteur 25, puis 26.
+        // meta-data sorts before user-data: sector 25, then 26.
         assert_eq!(img[26 * SECTOR], b'#');
         assert_eq!(img[25 * SECTOR], b'x');
         let joliet_root = &img[24 * SECTOR..25 * SECTOR];

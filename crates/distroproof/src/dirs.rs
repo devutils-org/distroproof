@@ -1,4 +1,4 @@
-//! Répertoires XDG utilisés par distroproof.
+//! XDG directories used by distroproof.
 
 use std::env;
 use std::path::PathBuf;
@@ -22,12 +22,12 @@ pub fn images() -> PathBuf {
     cache().join("images")
 }
 
-/// Répertoires de travail des VM en cours (overlays, disques jetables).
+/// Working directories of running VMs (overlays, throwaway disks).
 pub fn runs() -> PathBuf {
     cache().join("runs")
 }
 
-/// Répertoire court pour les sockets unix (108 octets maximum par chemin).
+/// Short directory for unix sockets (108 bytes at most per path).
 pub fn sockets() -> PathBuf {
     match env::var_os("XDG_RUNTIME_DIR") {
         Some(v) if !v.is_empty() => PathBuf::from(v).join("distroproof"),

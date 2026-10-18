@@ -1,4 +1,4 @@
-//! `perf_event_open` logiciel et matériel, PMU disponibles.
+//! Software and hardware `perf_event_open`, available PMUs.
 
 use std::fs;
 use std::path::Path;
@@ -37,12 +37,12 @@ pub fn probe() -> Section {
     ];
     for (key, kind, config, user_only) in events {
         let value = match sys::perf_event_open(kind, config, user_only) {
-            Ok(_fd) => Value::ok("ouvert"),
+            Ok(_fd) => Value::ok("opened"),
             Err(libc::ENOSYS) => {
-                Value::unavailable("ENOSYS : perf_event_open absent (CONFIG_PERF_EVENTS)")
+                Value::unavailable("ENOSYS: perf_event_open missing (CONFIG_PERF_EVENTS)")
             }
             Err(e @ (libc::ENOENT | libc::EOPNOTSUPP | libc::ENODEV)) => {
-                Value::ok(format!("non supporté ({})", errno_name(e)))
+                Value::ok(format!("unsupported ({})", errno_name(e)))
             }
             Err(e) => util::errno_value(e),
         };

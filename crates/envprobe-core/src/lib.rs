@@ -1,8 +1,8 @@
-//! Sondes d'environnement Linux.
+//! Linux environment probes.
 //!
-//! Chaque catégorie est un module de [`probes`] exposant `probe() -> Section`.
-//! Une sonde ne plante jamais : une information absente ou refusée devient une
-//! [`Value::Unavailable`] ou une [`Value::Denied`] avec sa raison.
+//! Each category is a [`probes`] module exposing `probe() -> Section`.
+//! A probe never crashes: missing or denied information becomes a
+//! [`Value::Unavailable`] or a [`Value::Denied`] with its reason.
 
 pub mod diff;
 pub mod parse;
@@ -16,19 +16,19 @@ use std::panic;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Version du format du rapport JSON. À incrémenter à chaque changement
-/// incompatible (clé renommée, statut ajouté…).
+/// Version of the JSON report format. Bump it on every incompatible change
+/// (renamed key, added status…).
 pub const SCHEMA_VERSION: u32 = 1;
 
-/// Résultat d'une sonde élémentaire.
+/// Result of an elementary probe.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "status", content = "value", rename_all = "snake_case")]
 pub enum Value {
-    /// Valeur obtenue.
+    /// Value obtained.
     Ok(String),
-    /// Information absente ou impossible à obtenir (fichier absent, syscall inexistant…) ; contient la raison.
+    /// Information missing or impossible to obtain (missing file, nonexistent syscall…); holds the reason.
     Unavailable(String),
-    /// Accès refusé (EPERM, EACCES, seccomp…) ; contient l'errno et le contexte.
+    /// Access denied (EPERM, EACCES, seccomp…); holds the errno and the context.
     Denied(String),
 }
 
@@ -57,23 +57,23 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Ok(v) => f.write_str(v),
-            Value::Unavailable(reason) => write!(f, "indisponible ({reason})"),
-            Value::Denied(reason) => write!(f, "refusé ({reason})"),
+            Value::Unavailable(reason) => write!(f, "unavailable ({reason})"),
+            Value::Denied(reason) => write!(f, "denied ({reason})"),
         }
     }
 }
 
-/// Une information du rapport.
+/// One piece of information in the report.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Entry {
     pub key: String,
     #[serde(flatten)]
     pub value: Value,
-    /// Le résultat change selon les privilèges du processus (root, capabilities).
+    /// The result depends on the process's privileges (root, capabilities).
     pub privileged: bool,
 }
 
-/// Une catégorie du rapport, par exemple « kernel » ou « bpf ».
+/// A report category, for example "kernel" or "bpf".
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Section {
     pub name: String,
@@ -109,7 +109,7 @@ impl Section {
     }
 }
 
-/// Rapport complet, tel qu'écrit par `envprobe --json`.
+/// Full report, as written by `envprobe --json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Report {
     pub schema_version: u32,
@@ -123,13 +123,13 @@ impl Report {
     }
 }
 
-/// Noms des sections, dans l'ordre du rapport.
+/// Section names, in report order.
 pub fn section_names() -> impl Iterator<Item = &'static str> {
     probes::ALL.iter().map(|(name, _)| *name)
 }
 
-/// Exécute les sondes demandées (toutes si `only` est vide). Une sonde qui
-/// panique est remplacée par une section contenant l'erreur, les autres continuent.
+/// Runs the requested probes (all of them if `only` is empty). A probe that
+/// panics is replaced by a section holding the error; the others go on.
 pub fn probe(only: &[&str]) -> Report {
     let sections = probes::ALL
         .iter()
@@ -140,12 +140,9 @@ pub fn probe(only: &[&str]) -> Report {
                     .downcast_ref::<&str>()
                     .map(|s| s.to_string())
                     .or_else(|| payload.downcast_ref::<String>().cloned())
-                    .unwrap_or_else(|| "panique".to_string());
+                    .unwrap_or_else(|| "panic".to_string());
                 let mut section = Section::new(*name);
-                section.push(
-                    "error",
-                    Value::unavailable(format!("sonde en échec : {msg}")),
-                );
+                section.push("error", Value::unavailable(format!("probe failed: {msg}")));
                 section
             })
         })
@@ -157,12 +154,12 @@ pub fn probe(only: &[&str]) -> Report {
     }
 }
 
-/// Exécute toutes les sondes.
+/// Runs every probe.
 pub fn probe_all() -> Vec<Section> {
     probe(&[]).sections
 }
 
-/// Schéma JSON du rapport.
+/// JSON schema of the report.
 pub fn json_schema() -> serde_json::Value {
-    serde_json::to_value(schemars::schema_for!(Report)).expect("schéma sérialisable")
+    serde_json::to_value(schemars::schema_for!(Report)).expect("serializable schema")
 }

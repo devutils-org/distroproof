@@ -1,6 +1,6 @@
-//! Version de la libc sans l'exécuter.
+//! libc version, without running it.
 
-/// Cherche « release version X.Y » dans le binaire `libc.so.6` de glibc.
+/// Looks for "release version X.Y" in glibc's `libc.so.6` binary.
 pub fn glibc_version(data: &[u8]) -> Option<String> {
     let marker = b"release version ";
     let pos = data.windows(marker.len()).position(|w| w == marker)? + marker.len();
@@ -13,7 +13,7 @@ pub fn glibc_version(data: &[u8]) -> Option<String> {
     (!version.is_empty()).then(|| version.to_string())
 }
 
-/// Version du paquet `musl` dans la base apk (`/lib/apk/db/installed`).
+/// Version of the `musl` package in the apk database (`/lib/apk/db/installed`).
 pub fn musl_version_from_apk(db: &str) -> Option<String> {
     db.split("\n\n").find_map(|block| {
         let mut lines = block.lines();

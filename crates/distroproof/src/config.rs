@@ -1,7 +1,7 @@
-//! Fichier déclaratif `distroproof.toml` : la matrice de test du projet.
+//! Declarative `distroproof.toml` file: the project's test matrix.
 //!
-//! Toute erreur (syntaxe, clé inconnue, image inexistante, durée invalide…)
-//! est signalée avec sa ligne et sa colonne, avant de lancer la moindre VM.
+//! Every error (syntax, unknown key, nonexistent image, invalid duration…)
+//! is reported with its line and column, before any VM is started.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
@@ -17,10 +17,10 @@ use crate::model::VmSpec;
 
 pub const DEFAULT_FILE: &str = "distroproof.toml";
 
-/// Exclusions par défaut du répertoire de travail copié dans l'invité.
+/// Default exclusions for the working directory copied into the guest.
 pub const DEFAULT_EXCLUDE: &[&str] = &[".git", "target", ".distroproof"];
 
-/// Capabilities qu'on peut accorder à l'utilisateur de test.
+/// Capabilities that can be granted to the test user.
 const CAPABILITIES: &[&str] = &[
     "audit_control",
     "audit_read",
@@ -117,14 +117,14 @@ struct RawConfig {
     run: Option<Spanned<RawRun>>,
 }
 
-/// Erreur localisée dans le fichier.
+/// Error located in the file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigError {
     pub path: PathBuf,
     pub line: usize,
     pub column: usize,
     pub message: String,
-    /// Ligne fautive et soulignement.
+    /// Offending line and underline.
     snippet: Option<(String, usize, usize)>,
 }
 
@@ -181,7 +181,7 @@ impl Ctx<'_> {
     }
 }
 
-/// Matrice validée.
+/// Validated matrix.
 #[derive(Debug, Clone)]
 pub struct Config {
     pub targets: Vec<VmSpec>,
@@ -192,7 +192,7 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
         path: path.to_path_buf(),
         line: 0,
         column: 0,
-        message: format!("lecture impossible : {e}"),
+        message: format!("cannot read: {e}"),
         snippet: None,
     })?;
     parse(path, &text)
@@ -239,17 +239,14 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
     if run.command.is_none() && !probe {
         return Err(ctx.error(
             run_spanned.span(),
-            "rien à exécuter : [run] n'a ni command ni probe = true",
+            "nothing to run: [run] has neither command nor probe = true",
         ));
     }
     let workdir = match &run.workdir {
         Some(w) => {
             let dir = base.join(w.get_ref());
             if !dir.is_dir() {
-                return Err(ctx.error(
-                    w.span(),
-                    format!("répertoire introuvable : {}", dir.display()),
-                ));
+                return Err(ctx.error(w.span(), format!("directory not found: {}", dir.display())));
             }
             dir
         }
@@ -260,14 +257,14 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
         if !valid_env_name(k.get_ref()) {
             return Err(ctx.error(
                 k.span(),
-                format!("nom de variable invalide « {} »", k.get_ref()),
+                format!("invalid variable name \"{}\"", k.get_ref()),
             ));
         }
         env.insert(k.get_ref().clone(), v.clone());
     }
 
     if raw.target.is_empty() {
-        return Err(ctx.error(0..0, "aucune cible : ajoutez au moins un bloc [[target]]"));
+        return Err(ctx.error(0..0, "no targets: add at least one [[target]] block"));
     }
     let mut names = HashSet::new();
     let mut targets = Vec::new();
@@ -280,17 +277,17 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
         {
             return Err(ctx.error(
                 t.name.span(),
-                "nom de cible invalide (lettres, chiffres, « . », « _ » et « - »)",
+                "invalid target name (letters, digits, \".\", \"_\" and \"-\")",
             ));
         }
         if !names.insert(name.clone()) {
-            return Err(ctx.error(t.name.span(), format!("cible « {name} » déjà définie")));
+            return Err(ctx.error(t.name.span(), format!("target \"{name}\" already defined")));
         }
         if images::find(t.image.get_ref()).is_none() {
             return Err(ctx.error(
                 t.image.span(),
                 format!(
-                    "image inconnue « {} » (connues : {})",
+                    "unknown image \"{}\" (known: {})",
                     t.image.get_ref(),
                     images::names().join(", ")
                 ),
@@ -318,7 +315,7 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
                 || key.starts_with('.')
                 || key.contains("..")
             {
-                return Err(ctx.error(k.span(), format!("clé sysctl invalide « {key} »")));
+                return Err(ctx.error(k.span(), format!("invalid sysctl key \"{key}\"")));
             }
             let value = match v.get_ref() {
                 toml::Value::String(s) => s.clone(),
@@ -327,7 +324,7 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
                 _ => {
                     return Err(ctx.error(
                         v.span(),
-                        "valeur sysctl attendue : chaîne, entier ou booléen",
+                        "expected a sysctl value: string, integer or boolean",
                     ))
                 }
             };
@@ -335,7 +332,7 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
         }
         let kernel_cmdline = match &t.kernel_cmdline {
             Some(c) if c.get_ref().trim().is_empty() => {
-                return Err(ctx.error(c.span(), "kernel_cmdline vide"))
+                return Err(ctx.error(c.span(), "empty kernel_cmdline"))
             }
             Some(c) => Some(c.get_ref().trim().to_string()),
             None => None,
@@ -354,10 +351,9 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
             Some(c) => {
                 check_caps(c, &ctx)?;
                 if user == "root" && !c.get_ref().is_empty() {
-                    return Err(ctx.error(
-                        c.span(),
-                        "caps ne s'applique qu'à un utilisateur non root (as_user)",
-                    ));
+                    return Err(
+                        ctx.error(c.span(), "caps only applies to a non-root user (as_user)")
+                    );
                 }
                 c.get_ref().iter().map(|s| normalize_cap(s)).collect()
             }
@@ -393,7 +389,7 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
 fn check_cpus(c: &Spanned<i64>, ctx: &Ctx) -> Result<u32, ConfigError> {
     match u32::try_from(*c.get_ref()) {
         Ok(n @ 1..=64) => Ok(n),
-        _ => Err(ctx.error(c.span(), "cpus doit être compris entre 1 et 64")),
+        _ => Err(ctx.error(c.span(), "cpus must be between 1 and 64")),
     }
 }
 
@@ -401,10 +397,7 @@ fn check_user(u: &Spanned<String>, ctx: &Ctx) -> Result<(), ConfigError> {
     if valid_user(u.get_ref()) {
         Ok(())
     } else {
-        Err(ctx.error(
-            u.span(),
-            format!("nom d'utilisateur invalide « {} »", u.get_ref()),
-        ))
+        Err(ctx.error(u.span(), format!("invalid user name \"{}\"", u.get_ref())))
     }
 }
 
@@ -437,11 +430,11 @@ pub fn check_cap(cap: &str) -> Result<(), String> {
     if CAPABILITIES.contains(&normalize_cap(cap).as_str()) {
         Ok(())
     } else {
-        Err(format!("capability inconnue « {cap} »"))
+        Err(format!("unknown capability \"{cap}\""))
     }
 }
 
-/// `512M`, `1G`, `1.5G`, `2048` (Mio par défaut).
+/// `512M`, `1G`, `1.5G`, `2048` (MiB by default).
 pub fn parse_size_mib(s: &str) -> Result<u64, String> {
     let t = s.trim();
     let (num, mult) = match t.char_indices().find(|(_, c)| c.is_ascii_alphabetic()) {
@@ -451,7 +444,7 @@ pub fn parse_size_mib(s: &str) -> Result<u64, String> {
                 "M" => 1.0,
                 "G" => 1024.0,
                 "T" => 1024.0 * 1024.0,
-                _ => return Err(format!("unité de taille inconnue dans « {s} » (M ou G)")),
+                _ => return Err(format!("unknown size unit in \"{s}\" (M or G)")),
             };
             (&t[..i], mult)
         }
@@ -460,18 +453,18 @@ pub fn parse_size_mib(s: &str) -> Result<u64, String> {
     let n: f64 = num
         .trim()
         .parse()
-        .map_err(|_| format!("taille invalide « {s} » (par exemple 512M ou 2G)"))?;
+        .map_err(|_| format!("invalid size \"{s}\" (for example 512M or 2G)"))?;
     let mib = (n * mult).round() as u64;
     if mib < 128 {
-        return Err(format!("{s} : au moins 128M de mémoire"));
+        return Err(format!("{s}: at least 128M of memory"));
     }
     Ok(mib)
 }
 
-/// `90s`, `5m`, `1h30m`, `300` (secondes).
+/// `90s`, `5m`, `1h30m`, `300` (seconds).
 pub fn parse_duration(s: &str) -> Result<Duration, String> {
     let t = s.trim();
-    let err = || format!("durée invalide « {s} » (par exemple 90s, 5m, 1h30m)");
+    let err = || format!("invalid duration \"{s}\" (for example 90s, 5m, 1h30m)");
     if t.is_empty() {
         return Err(err());
     }
@@ -544,7 +537,7 @@ kernel_cmdline = "lockdown=confidentiality"
 
 [run]
 setup = "./scripts/install-deps.sh"
-command = "./target/release/montool --selftest"
+command = "./target/release/mytool --selftest"
 as_user = "test"
 "#,
         )
@@ -569,7 +562,7 @@ as_user = "test"
         )
         .unwrap_err();
         assert_eq!((err.line, err.column), (3, 9));
-        assert!(err.message.contains("image inconnue"));
+        assert!(err.message.contains("unknown image"));
         let shown = err.to_string();
         assert!(shown.contains("distroproof.toml:3:9"));
         assert!(shown.contains("^^^^^^^^^"), "{shown}");
@@ -592,17 +585,17 @@ as_user = "test"
         assert!(parse_str(&dup)
             .unwrap_err()
             .message
-            .contains("déjà définie"));
+            .contains("already defined"));
         let bad_timeout = format!("{base}timeout = \"5 minutes\"\n");
         assert!(parse_str(&bad_timeout)
             .unwrap_err()
             .message
-            .contains("durée"));
+            .contains("duration"));
         let caps_root = format!("{base}caps = [\"bpf\"]\n");
         assert!(parse_str(&caps_root)
             .unwrap_err()
             .message
-            .contains("non root"));
+            .contains("non-root"));
         let caps_user = format!("{base}caps = [\"CAP_BPF\", \"perfmon\"]\nas_user = \"test\"\n");
         assert_eq!(
             parse_str(&caps_user).unwrap().targets[0].caps,
@@ -610,12 +603,12 @@ as_user = "test"
         );
         let bad_cap = format!("{base}caps = [\"fly\"]\nas_user = \"test\"\n");
         assert!(parse_str(&bad_cap).unwrap_err().message.contains("fly"));
-        assert!(parse_str("").unwrap_err().message.contains("aucune cible"));
+        assert!(parse_str("").unwrap_err().message.contains("no targets"));
         let nothing = format!("{base}[run]\nprobe = false\n");
         assert!(parse_str(&nothing)
             .unwrap_err()
             .message
-            .contains("rien à exécuter"));
+            .contains("nothing to run"));
         let int_sysctl = format!("{base}sysctl = {{ \"kernel.perf_event_paranoid\" = 3 }}\n");
         assert_eq!(
             parse_str(&int_sysctl).unwrap().targets[0].sysctl["kernel.perf_event_paranoid"],

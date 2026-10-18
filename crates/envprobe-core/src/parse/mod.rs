@@ -1,4 +1,4 @@
-//! Parseurs purs, sans accès au système, testés sur des fixtures.
+//! Pure parsers, with no system access, tested on fixtures.
 
 pub mod elf;
 pub mod kconfig;
@@ -8,7 +8,7 @@ pub mod mounts;
 pub mod os_release;
 pub mod status;
 
-/// Extrait la valeur active d'une liste du type `none [integrity] confidentiality`.
+/// Extracts the active value from a list like `none [integrity] confidentiality`.
 pub fn bracketed(s: &str) -> Option<&str> {
     let start = s.find('[')? + 1;
     let end = start + s[start..].find(']')?;

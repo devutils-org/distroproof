@@ -1,28 +1,28 @@
-//! CPU et mémoire d'un processus QEMU, lus dans `/proc/<pid>`.
+//! CPU and memory of a QEMU process, read from `/proc/<pid>`.
 
 use std::fs;
 use std::time::Instant;
 
-/// Temps CPU cumulé (utime + stime) en ticks, champs 14 et 15 de `stat`.
+/// Cumulative CPU time (utime + stime) in ticks, fields 14 and 15 of `stat`.
 pub fn parse_cpu_ticks(stat: &str) -> Option<u64> {
-    // Le nom du processus (champ 2) peut contenir des espaces : on repart
-    // de la dernière parenthèse fermante.
+    // The process name (field 2) can contain spaces: start again from the
+    // last closing parenthesis.
     let rest = &stat[stat.rfind(')')? + 2..];
     let fields: Vec<&str> = rest.split_whitespace().collect();
-    // Après « ) », le champ 3 (state) est à l'index 0 : utime = 14 → index 11.
+    // After ")", field 3 (state) is at index 0: utime = 14 → index 11.
     let utime: u64 = fields.get(11)?.parse().ok()?;
     let stime: u64 = fields.get(12)?.parse().ok()?;
     Some(utime + stime)
 }
 
-/// `VmRSS` de `/proc/<pid>/status`, en octets.
+/// `VmRSS` from `/proc/<pid>/status`, in bytes.
 pub fn parse_rss(status: &str) -> Option<u64> {
     let line = status.lines().find(|l| l.starts_with("VmRSS:"))?;
     let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
     Some(kib * 1024)
 }
 
-/// Échantillonneur : le pourcentage CPU est calculé entre deux appels.
+/// Sampler: the CPU percentage is computed between two calls.
 pub struct Sampler {
     pid: u32,
     ticks_per_sec: u64,
@@ -38,7 +38,7 @@ impl Sampler {
         }
     }
 
-    /// (CPU en % d'un cœur, RSS en octets).
+    /// (CPU as a % of one core, RSS in bytes).
     pub fn sample(&mut self) -> Option<(f64, u64)> {
         let stat = fs::read_to_string(format!("/proc/{}/stat", self.pid)).ok()?;
         let status = fs::read_to_string(format!("/proc/{}/status", self.pid)).ok()?;

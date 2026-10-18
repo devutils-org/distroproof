@@ -1,4 +1,4 @@
-//! QEMU piloté en sous-processus, et son socket QMP.
+//! QEMU driven as a subprocess, and its QMP socket.
 
 use std::env;
 use std::ffi::OsString;
@@ -11,7 +11,7 @@ use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::UnixStream;
 use tokio::process::Command;
 
-/// Binaire QEMU : `$DISTROPROOF_QEMU` ou `qemu-system-x86_64` dans le PATH.
+/// QEMU binary: `$DISTROPROOF_QEMU` or `qemu-system-x86_64` from PATH.
 pub fn qemu_binary() -> OsString {
     env::var_os("DISTROPROOF_QEMU").unwrap_or_else(|| "qemu-system-x86_64".into())
 }
@@ -20,7 +20,7 @@ pub fn qemu_img_binary() -> OsString {
     env::var_os("DISTROPROOF_QEMU_IMG").unwrap_or_else(|| "qemu-img".into())
 }
 
-/// KVM utilisable par l'utilisateur courant ?
+/// Is KVM usable by the current user?
 pub fn kvm_available() -> bool {
     std::fs::OpenOptions::new()
         .read(true)
@@ -29,14 +29,14 @@ pub fn kvm_available() -> bool {
         .is_ok()
 }
 
-/// Firmware UEFI (OVMF) : code en lecture seule et modèle de variables.
+/// UEFI firmware (OVMF): read-only code and variables template.
 pub struct Ovmf {
     pub code: PathBuf,
     pub vars: PathBuf,
 }
 
-/// Cherche OVMF : `$DISTROPROOF_OVMF_CODE` et `$DISTROPROOF_OVMF_VARS`, puis
-/// les emplacements des paquets Arch, Debian/Ubuntu, Fedora et de QEMU.
+/// Looks for OVMF: `$DISTROPROOF_OVMF_CODE` and `$DISTROPROOF_OVMF_VARS`, then
+/// the locations used by the Arch, Debian/Ubuntu, Fedora and QEMU packages.
 pub fn find_ovmf() -> Option<Ovmf> {
     if let (Some(code), Some(vars)) = (
         env::var_os("DISTROPROOF_OVMF_CODE"),
@@ -78,7 +78,7 @@ pub fn find_ovmf() -> Option<Ovmf> {
     })
 }
 
-/// Overlay qcow2 jetable au-dessus de l'image de base, qui reste intacte.
+/// Throwaway qcow2 overlay on top of the base image, which stays untouched.
 pub async fn create_overlay(base: &Path, overlay: &Path) -> Result<(), String> {
     let out = Command::new(qemu_img_binary())
         .args(["create", "-q", "-f", "qcow2", "-F", "qcow2", "-b"])
@@ -86,17 +86,17 @@ pub async fn create_overlay(base: &Path, overlay: &Path) -> Result<(), String> {
         .arg(overlay)
         .output()
         .await
-        .map_err(|e| format!("qemu-img introuvable : {e}"))?;
+        .map_err(|e| format!("qemu-img not found: {e}"))?;
     if !out.status.success() {
         return Err(format!(
-            "qemu-img create : {}",
+            "qemu-img create: {}",
             String::from_utf8_lossy(&out.stderr).trim()
         ));
     }
     Ok(())
 }
 
-/// Démarrage direct sur un noyau extrait de l'image.
+/// Direct boot on a kernel extracted from the image.
 pub struct KernelBoot<'a> {
     pub kernel: &'a Path,
     pub initrd: Option<&'a Path>,
@@ -116,13 +116,13 @@ pub struct Machine<'a> {
     pub console: &'a Path,
     pub agent: &'a Path,
     pub kernel: Option<KernelBoot<'a>>,
-    /// Boot UEFI : code OVMF et copie des variables propre à cette VM.
+    /// UEFI boot: OVMF code and this VM's own copy of the variables.
     pub uefi: Option<(&'a Path, &'a Path)>,
 }
 
 impl Machine<'_> {
-    /// Ligne de commande QEMU. La VM démarre en pause (`-S`) : l'hôte se
-    /// connecte à tous les sockets avant de la lancer, rien n'est perdu.
+    /// QEMU command line. The VM starts paused (`-S`): the host connects to
+    /// every socket before starting it, so nothing is lost.
     pub fn command(&self) -> Command {
         let mut cmd = Command::new(qemu_binary());
         let kvm = kvm_available();
@@ -174,7 +174,7 @@ impl Machine<'_> {
                 drive.push(",readonly=on");
             }
             cmd.arg("-drive").arg(drive);
-            // Avec -kernel, QEMU réserve lui-même le premier index de boot.
+            // With -kernel, QEMU reserves the first boot index itself.
             let boot = if i == 0 && self.kernel.is_none() {
                 ",bootindex=0"
             } else {
@@ -198,7 +198,7 @@ impl Machine<'_> {
     }
 }
 
-/// Les options QEMU séparées par des virgules : une virgule se double.
+/// Comma-separated QEMU options: a literal comma is doubled.
 fn escape_opt(path: &Path) -> OsString {
     path.to_string_lossy().replace(',', ",,").into()
 }
@@ -217,21 +217,21 @@ fn socket_chardev(id: &str, path: &Path) -> OsString {
     s
 }
 
-/// Connexion à un socket unix créé par QEMU, en attendant qu'il apparaisse.
+/// Connects to a unix socket created by QEMU, waiting for it to appear.
 pub async fn connect(path: &Path, wait: Duration) -> Result<UnixStream, String> {
     let deadline = tokio::time::Instant::now() + wait;
     loop {
         match UnixStream::connect(path).await {
             Ok(s) => return Ok(s),
             Err(e) if tokio::time::Instant::now() >= deadline => {
-                return Err(format!("{} : {e}", path.display()))
+                return Err(format!("{}: {e}", path.display()))
             }
             Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
         }
     }
 }
 
-/// Client QMP minimal : une commande à la fois, événements ignorés.
+/// Minimal QMP client: one command at a time, events ignored.
 pub struct Qmp {
     reader: BufReader<OwnedReadHalf>,
     writer: OwnedWriteHalf,
@@ -245,7 +245,7 @@ impl Qmp {
             reader: BufReader::new(r),
             writer: w,
         };
-        // Message d'accueil puis négociation des capacités.
+        // Greeting, then capabilities negotiation.
         qmp.read_message().await?;
         qmp.execute("qmp_capabilities", None).await?;
         Ok(qmp)
@@ -259,11 +259,11 @@ impl Qmp {
                 .reader
                 .read_line(&mut line)
                 .await
-                .map_err(|e| format!("QMP : {e}"))?;
+                .map_err(|e| format!("QMP: {e}"))?;
             if n == 0 {
-                return Err("QMP : connexion fermée".into());
+                return Err("QMP: connection closed".into());
             }
-            let msg: Json = serde_json::from_str(&line).map_err(|e| format!("QMP : {e}"))?;
+            let msg: Json = serde_json::from_str(&line).map_err(|e| format!("QMP: {e}"))?;
             if msg.get("event").is_none() {
                 return Ok(msg);
             }
@@ -280,20 +280,20 @@ impl Qmp {
         self.writer
             .write_all(text.as_bytes())
             .await
-            .map_err(|e| format!("QMP : {e}"))?;
+            .map_err(|e| format!("QMP: {e}"))?;
         let reply = tokio::time::timeout(Duration::from_secs(10), self.read_message())
             .await
-            .map_err(|_| format!("QMP : pas de réponse à {command}"))??;
+            .map_err(|_| format!("QMP: no reply to {command}"))??;
         if let Some(err) = reply.get("error") {
             return Err(format!(
-                "QMP {command} : {}",
-                err.get("desc").and_then(Json::as_str).unwrap_or("erreur")
+                "QMP {command}: {}",
+                err.get("desc").and_then(Json::as_str).unwrap_or("error")
             ));
         }
         Ok(reply.get("return").cloned().unwrap_or(Json::Null))
     }
 
-    /// Octets lus et écrits sur l'ensemble des disques.
+    /// Bytes read and written across all disks.
     pub async fn block_stats(&mut self) -> Option<(u64, u64)> {
         let ret = self.execute("query-blockstats", None).await.ok()?;
         let mut rd = 0;
@@ -312,7 +312,7 @@ impl Qmp {
     }
 }
 
-/// Répertoire d'une exécution, supprimé quoi qu'il arrive.
+/// Directory of one run, removed no matter what.
 pub struct RunDir {
     pub dir: PathBuf,
     pub sockets: PathBuf,
@@ -333,7 +333,7 @@ impl RunDir {
         let dir = crate::dirs::runs().join(&id);
         let sockets = crate::dirs::sockets().join(&id);
         for d in [&dir, &sockets] {
-            std::fs::create_dir_all(d).map_err(|e| format!("{} : {e}", d.display()))?;
+            std::fs::create_dir_all(d).map_err(|e| format!("{}: {e}", d.display()))?;
         }
         std::fs::write(dir.join("pid"), std::process::id().to_string())
             .map_err(|e| e.to_string())?;
@@ -371,7 +371,7 @@ fn unique() -> u64 {
     (nanos << 8) ^ NEXT.fetch_add(1, Ordering::Relaxed)
 }
 
-/// Supprime les répertoires laissés par un distroproof tué (SIGKILL).
+/// Removes the directories left behind by a killed distroproof (SIGKILL).
 pub fn clean_stale_runs() {
     for base in [crate::dirs::runs(), crate::dirs::sockets()] {
         let Ok(entries) = std::fs::read_dir(&base) else {
@@ -380,7 +380,7 @@ pub fn clean_stale_runs() {
         for entry in entries.flatten() {
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            // <nom>-<pid>-<unique>
+            // <name>-<pid>-<unique>
             let pid = name.rsplit('-').nth(1).and_then(|p| p.parse::<u32>().ok());
             if let Some(pid) = pid {
                 if !crate::sys::pid_alive(pid) {

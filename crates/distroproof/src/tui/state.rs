@@ -1,4 +1,4 @@
-//! État de la TUI, alimenté uniquement par le bus d'événements.
+//! TUI state, fed only by the event bus.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::{Duration, Instant};
@@ -12,7 +12,7 @@ use crate::event::{Control, Event, Metrics, Stage, Stream, VmEvent};
 use crate::model::{Outcome, TargetResult, VmSpec};
 use crate::vm::strip_ansi;
 
-/// Échantillons gardés pour les graphes (une seconde chacun).
+/// Samples kept for the graphs (one second each).
 pub const HISTORY: usize = 120;
 const MAX_LOGS: usize = 20_000;
 
@@ -50,7 +50,7 @@ pub struct Target {
     pub cpus: u32,
     pub phase: Phase,
     pub paused: bool,
-    /// Processus QEMU vivant.
+    /// QEMU process alive.
     pub alive: bool,
     pub held: bool,
     pub started: Option<Instant>,
@@ -162,7 +162,7 @@ impl Target {
             }
             VmEvent::Preparing => {
                 self.phase = Phase::Preparing;
-                self.log(LogKind::Info, "boot de préparation : extraction du noyau");
+                self.log(LogKind::Info, "preparation boot: extracting the kernel");
             }
             VmEvent::Booting {
                 pid, direct_kernel, ..
@@ -182,7 +182,7 @@ impl Target {
                         if direct_kernel {
                             "boot direct"
                         } else {
-                            "boot sur le disque"
+                            "booting from disk"
                         }
                     ),
                 );
@@ -192,7 +192,7 @@ impl Target {
                     self.boot_ms = Some(boot_ms);
                     self.phase = Phase::Running(None);
                 }
-                self.log(LogKind::Info, format!("agent prêt en {} ms", boot_ms));
+                self.log(LogKind::Info, format!("agent ready in {} ms", boot_ms));
             }
             VmEvent::Stage { stage } => {
                 if self.phase != Phase::Preparing {
@@ -201,7 +201,7 @@ impl Target {
                 self.log(LogKind::Stage, format!("▶ {}", stage.label()));
             }
             VmEvent::StageExited { stage, code } => {
-                self.log(LogKind::Stage, format!("■ {} : code {code}", stage.label()));
+                self.log(LogKind::Stage, format!("■ {}: code {code}", stage.label()));
             }
             VmEvent::Output { stream, line } => {
                 let kind = match stream {
@@ -226,7 +226,7 @@ impl Target {
             }
             VmEvent::Resumed => {
                 self.paused = false;
-                self.log(LogKind::Info, "reprise");
+                self.log(LogKind::Info, "resumed");
             }
             VmEvent::Finished(result) => {
                 self.phase = Phase::Done(result.outcome);
@@ -235,7 +235,7 @@ impl Target {
                     self.boot_ms = result.boot_ms;
                 }
                 let msg = match (&result.error, result.exit_code()) {
-                    (Some(e), _) => format!("{} : {e}", result.outcome.label()),
+                    (Some(e), _) => format!("{}: {e}", result.outcome.label()),
                     (None, Some(c)) => format!("{} (code {c})", result.outcome.label()),
                     (None, None) => result.outcome.label().to_string(),
                 };
@@ -246,7 +246,7 @@ impl Target {
                 self.held = true;
                 self.log(
                     LogKind::Info,
-                    "VM gardée : shell root sur la console (c pour l'ouvrir)",
+                    "VM kept up: root shell on the console (c to open it)",
                 );
             }
             VmEvent::Stopped => {
@@ -268,9 +268,9 @@ pub enum View {
 
 pub struct Pane {
     pub view: View,
-    /// Lignes défilées depuis le bas (logs) ou depuis le haut (rapport).
+    /// Lines scrolled from the bottom (logs) or from the top (report).
     pub scroll: usize,
-    /// Cible affichée quand le panneau est épinglé, sinon la sélection.
+    /// Target shown when the pane is pinned; otherwise the selection.
     pub pinned: Option<usize>,
     pub cursor: usize,
     pub collapsed: HashSet<String>,
@@ -290,7 +290,7 @@ impl Pane {
 
 pub struct Workspace {
     pub name: String,
-    /// Groupe de cibles (fichier de matrice) montré par le dashboard.
+    /// Group of targets (matrix file) shown by the dashboard.
     pub group: Option<usize>,
     pub root: Node,
     pub focus: usize,
@@ -307,10 +307,10 @@ pub enum Filter {
 impl Filter {
     pub fn label(self) -> &'static str {
         match self {
-            Filter::All => "toutes",
-            Filter::Running => "en cours",
-            Filter::Failed => "échecs",
-            Filter::Done => "terminées",
+            Filter::All => "all",
+            Filter::Running => "running",
+            Filter::Failed => "failed",
+            Filter::Done => "finished",
         }
     }
 
@@ -325,10 +325,10 @@ impl Filter {
 
     pub fn parse(s: &str) -> Option<Filter> {
         Some(match s {
-            "all" | "toutes" | "tout" => Filter::All,
-            "running" | "encours" | "run" => Filter::Running,
-            "failed" | "fail" | "échecs" | "echecs" => Filter::Failed,
-            "done" | "finished" | "terminées" => Filter::Done,
+            "all" => Filter::All,
+            "running" | "run" => Filter::Running,
+            "failed" | "fail" => Filter::Failed,
+            "done" | "finished" => Filter::Done,
             _ => return None,
         })
     }
@@ -349,9 +349,9 @@ impl Filter {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mode {
     Normal,
-    /// Préfixe Ctrl+W : commande de fenêtre en attente.
+    /// Ctrl+W prefix: window command pending.
     Window,
-    /// Saisie envoyée à la console série de la cible.
+    /// Input sent to the target's serial console.
     Insert,
     Search(String),
     Palette {
@@ -376,7 +376,7 @@ pub struct App {
     pub controls: HashMap<String, UnboundedSender<Control>>,
     pub quit_armed: bool,
     pub quit: bool,
-    /// Géométrie du dernier rendu, pour la souris et la navigation.
+    /// Geometry of the last render, for the mouse and navigation.
     pub pane_rects: Vec<(usize, Rect)>,
     pub card_rects: Vec<(Rect, usize)>,
     pub dashboard_cols: usize,
@@ -409,23 +409,19 @@ impl App {
             card_rects: Vec::new(),
             dashboard_cols: 1,
         };
-        // Un workspace par matrice : dashboard au-dessus des logs.
+        // One workspace per matrix: dashboard above the logs.
         let multi = groups.len() > 1;
         for (i, name) in groups.iter().enumerate() {
             let dash = app.add_pane(View::Dashboard);
             let logs = app.add_pane(View::Logs);
             app.workspaces.push(Workspace {
-                name: if multi {
-                    name.clone()
-                } else {
-                    "matrice".into()
-                },
+                name: if multi { name.clone() } else { "matrix".into() },
                 group: multi.then_some(i),
                 root: Node::split(Node::Leaf(dash), Node::Leaf(logs), false, 58),
                 focus: dash,
             });
         }
-        // Workspace d'inspection : rapport et console côte à côte.
+        // Inspection workspace: report and console side by side.
         let report = app.add_pane(View::Report);
         let console = app.add_pane(View::Console);
         app.workspaces.push(Workspace {
@@ -460,7 +456,7 @@ impl App {
         self.workspace().focus
     }
 
-    /// Cible affichée par un panneau.
+    /// Target shown by a pane.
     pub fn pane_target(&self, pane: usize) -> usize {
         self.panes[pane]
             .pinned
@@ -468,7 +464,7 @@ impl App {
             .min(self.targets.len().saturating_sub(1))
     }
 
-    /// Cibles visibles dans le dashboard du workspace courant.
+    /// Targets visible in the current workspace's dashboard.
     pub fn visible(&self) -> Vec<usize> {
         let group = self.workspace().group;
         self.targets
@@ -488,18 +484,18 @@ impl App {
         let name = self.targets[target].name.clone();
         let label = match &ctrl {
             Control::Pause => Some("pause"),
-            Control::Resume => Some("reprise"),
-            Control::Kill => Some("arrêt"),
-            Control::Restart => Some("relance"),
+            Control::Resume => Some("resume"),
+            Control::Kill => Some("kill"),
+            Control::Restart => Some("restart"),
             Control::ConsoleInput(_) => None,
         };
         match self.controls.get(&name) {
             Some(tx) if tx.send(ctrl).is_ok() => {
                 if let Some(label) = label {
-                    self.notify(format!("{label} : {name}"));
+                    self.notify(format!("{label}: {name}"));
                 }
             }
-            _ => self.notify(format!("{name} : plus de contrôle possible")),
+            _ => self.notify(format!("{name}: can no longer be controlled")),
         }
     }
 
@@ -523,7 +519,7 @@ impl App {
         self.selected = visible[next];
     }
 
-    /// Garde la sélection parmi les cibles visibles quand le filtre change.
+    /// Keeps the selection among the visible targets when the filter changes.
     pub fn fix_selection(&mut self) {
         let visible = self.visible();
         if !visible.contains(&self.selected) {
@@ -534,9 +530,9 @@ impl App {
     }
 }
 
-/// Ajoute `bytes` au tampon et renvoie les lignes complètes, nettoyées. Le
-/// décodage attend la fin de ligne : un caractère UTF-8 ou une séquence
-/// d'échappement coupés entre deux lectures du port série restent intacts.
+/// Appends `bytes` to the buffer and returns the complete, cleaned-up lines.
+/// Decoding waits for the end of the line: a UTF-8 character or an escape
+/// sequence split across two serial port reads stays intact.
 fn complete_lines(partial: &mut Vec<u8>, bytes: &[u8]) -> Vec<String> {
     partial.extend_from_slice(bytes);
     let mut lines = Vec::new();
@@ -558,12 +554,12 @@ mod tests {
     #[test]
     fn console_lines_survive_split_reads() {
         let mut partial = Vec::new();
-        let text = "\x1b[0;32m OK \x1b[0m ttyS0…ice\r\ncommande terminée\n\nsuite";
+        let text = "\x1b[0;32m OK \x1b[0m ttyS0…ice\r\ncommand finished — déjà vu\n\nrest";
         let mut lines = Vec::new();
         for b in text.as_bytes() {
             lines.extend(complete_lines(&mut partial, std::slice::from_ref(b)));
         }
-        assert_eq!(lines, [" OK  ttyS0…ice", "commande terminée"]);
-        assert_eq!(partial, b"suite");
+        assert_eq!(lines, [" OK  ttyS0…ice", "command finished — déjà vu"]);
+        assert_eq!(partial, b"rest");
     }
 }
