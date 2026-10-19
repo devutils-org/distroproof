@@ -26,7 +26,8 @@ images in total.
 
 [Omniscient](https://github.com/moha-bekh/omniscient), a kernel-facing
 observability tool (eBPF, perf, BTF, file capabilities), was ported with
-distroproof across 16 distributions and 5 variants. It found 16 defects that
+distroproof across 16 distributions and 5 variants, 3 arm64 images and 8
+rootless containers. It found 26 defects that
 its development machine never showed -- a release that would not start on a
 third of the images, Debian's `perf_event_paranoid` 3 refusing what
 CAP_PERFMON should allow, eBPF maps charged to a 64 KiB `RLIMIT_MEMLOCK` on
@@ -39,7 +40,7 @@ The latest campaign ran all 21 targets in about 12 minutes with four VMs
 at a time. After the fixes, no source run listed as usable refused at start;
 refusal reasons agreed with envprobe on every target. Reference comparisons
 on six distributions still have open differences; the campaign does not
-cover aarch64, containers or NixOS.
+cover NixOS, which publishes no image a NoCloud seed configures.
 
 Use `[run].file_caps` to test capabilities on an installed binary,
 `[run].collect` to retrieve result files per target, and `DP_TARGET` / `DP_IMAGE`
