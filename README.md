@@ -18,9 +18,9 @@
 
 The probe, VM matrix, reporting and TUI are implemented as a proof of concept.
 The image catalog includes Debian 10–13 and sid, Ubuntu 18.04–24.04, Rocky
-8/9, Fedora latest/previous, Arch, Gentoo and Alpine on x86_64, and Debian 13,
-Ubuntu 24.04 and Fedora latest on aarch64 (emulated on an x86_64 host): 19
-images in total.
+8/9, Fedora latest/previous, Arch, Gentoo, Alpine and NixOS on x86_64, and
+Debian 13, Ubuntu 24.04 and Fedora latest on aarch64 (emulated on an x86_64
+host): 20 images in total.
 
 ## In practice: Omniscient
 
@@ -39,8 +39,8 @@ fact that explained it. The case study, finding by finding:
 The latest campaign ran all 21 targets in about 12 minutes with four VMs
 at a time. After the fixes, no source run listed as usable refused at start;
 refusal reasons agreed with envprobe on every target. Reference comparisons
-on six distributions still have open differences; the campaign does not
-cover NixOS, which publishes no image a NoCloud seed configures.
+on six distributions still have open differences. NixOS boots from Hydra's
+Proxmox image.
 
 Use `[run].file_caps` to test capabilities on an installed binary,
 `[run].collect` to retrieve result files per target, and `DP_TARGET` / `DP_IMAGE`

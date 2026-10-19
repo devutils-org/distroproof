@@ -149,6 +149,7 @@ They boot from disk through the firmware, never directly, so they take no
 | `arch` | rolling | |
 | `gentoo` | 6.18 dist-kernel | the autobuilds' latest cloud-init image, OpenRC; boots with UEFI |
 | `alpine` | 6.18 `virt` | musl, busybox |
+| `nixos` | 6.12 | NixOS 25.05: Hydra's Proxmox image (zstd-compressed VMA, its disk extracted to a qcow2 once verified; `zstd` needed), cloud-init NoCloud; no FHS paths, the agent finds its tools in the system profile |
 | `debian-13-arm64`, `ubuntu-24.04-arm64`, `fedora-latest-aarch64` | 6.12, 6.8, 6.19 | aarch64 under TCG on an x86_64 host; UEFI (AAVMF); the agent's channel is a virtio-serial port |
 
 Images are downloaded once, verified against the checksum published by the

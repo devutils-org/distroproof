@@ -28,7 +28,9 @@ if [ "$(uname -m)" = aarch64 ]; then
     while [ ! -e "$PORT" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
 fi
 [ -e "$PORT" ] && CH=$PORT
-PATH=$D/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# NixOS keeps its tools in the system profile, none in the FHS paths, and
+# cloud-init's own PATH is the one that found them: both kept behind.
+PATH=$D/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/run/wrappers/bin:/run/current-system/sw/bin:${PATH:-}
 export PATH
 
 stty -F $CH raw -echo 2>/dev/null || stty raw -echo <$CH 2>/dev/null
@@ -183,14 +185,18 @@ if [ "$DP_EXTRACT_KERNEL" = 1 ]; then
     r=$(uname -r)
     k=""
     # /boot/kernel-$r is Gentoo's installkernel; its modules/$r/vmlinuz is a
-    # link into a kernel source tree the image does not ship.
+    # link into a kernel source tree the image does not ship. NixOS keeps
+    # the running system's kernel and initrd in its profile, none in /boot,
+    # and its command line's init= is what boots that system again.
     for f in /boot/vmlinuz-$r /boot/kernel-$r /lib/modules/$r/vmlinuz /usr/lib/modules/$r/vmlinuz \
-        /boot/vmlinuz-virt /boot/vmlinuz-lts /boot/vmlinuz-linux /boot/vmlinuz; do
+        /boot/vmlinuz-virt /boot/vmlinuz-lts /boot/vmlinuz-linux /boot/vmlinuz \
+        /run/current-system/kernel; do
         [ -f "$f" ] && { k=$f; break; }
     done
     i=""
     for f in /boot/initrd.img-$r /boot/initramfs-$r.img /boot/initramfs-virt \
-        /boot/initramfs-lts /boot/initramfs-linux.img /boot/initrd.img /boot/initramfs.img; do
+        /boot/initramfs-lts /boot/initramfs-linux.img /boot/initrd.img /boot/initramfs.img \
+        /run/current-system/initrd; do
         [ -f "$f" ] && { i=$f; break; }
     done
     if [ -n "$k" ]; then

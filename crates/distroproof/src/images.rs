@@ -41,6 +41,15 @@ enum Source {
     /// Gentoo's latest cloud-init disk image, named by the autobuilds'
     /// `latest-<build>.txt`, with its `.sha256` beside it.
     GentooLatest { build: &'static str },
+    /// NixOS publishes no generic cloud image; Hydra builds a Proxmox one
+    /// (cloud-init, NoCloud) as a zstd-compressed VMA backup: the latest
+    /// finished build of `job` in the `nixos` project's `jobset`, its
+    /// product's sha256 from Hydra's JSON, its disk extracted to a qcow2
+    /// beside it once verified.
+    HydraVma {
+        jobset: &'static str,
+        job: &'static str,
+    },
 }
 
 /// The machine an image is built for. An image of another architecture than
@@ -245,6 +254,16 @@ pub const CATALOG: &[ImageDef] = &[
             prefix: "generic_alpine-",
             suffix: "-x86_64-bios-cloudinit-r0.qcow2",
             checksum_suffix: ".sha512",
+        },
+        uefi: false,
+        arch: Arch::X86_64,
+    },
+    ImageDef {
+        name: "nixos",
+        description: "NixOS 25.05, Hydra's Proxmox image (cloud-init, NoCloud), kernel 6.12",
+        source: Source::HydraVma {
+            jobset: "release-25.05",
+            job: "nixos.proxmoxImage.x86_64-linux",
         },
         uefi: false,
         arch: Arch::X86_64,
@@ -459,6 +478,20 @@ impl Store {
             let json = serde_json::to_string_pretty(&resolved).expect("serializable");
             fs::write(&current_path, json).map_err(|e| e.to_string())?;
         }
+        let path = match def.source {
+            Source::HydraVma { .. } => {
+                let qcow2 = dir.join(format!("{}.qcow2", resolved.file));
+                if !qcow2.is_file() {
+                    ev.info("extracting the VMA's disk to a qcow2".to_string());
+                    let (from, to) = (path.clone(), qcow2.clone());
+                    tokio::task::spawn_blocking(move || vma_to_qcow2(&from, &to))
+                        .await
+                        .map_err(|e| e.to_string())??;
+                }
+                qcow2
+            }
+            _ => path,
+        };
         remove_stale(&dir, &resolved.file);
         ev.emit(VmEvent::ImageReady {
             file: resolved.file.clone(),
@@ -474,12 +507,92 @@ impl Store {
     }
 }
 
+/// The disk of a zstd-compressed Proxmox VMA backup, as a qcow2: `zstd -dc`
+/// streams the archive, its first device's 64 KiB clusters are written to a
+/// sparse raw file at their offsets (a cluster's mask says which of its 4 KiB
+/// blocks follow; the rest are zero), and `qemu-img` converts that.
+fn vma_to_qcow2(archive: &Path, qcow2: &Path) -> Result<(), String> {
+    use std::io::{Seek, SeekFrom, Write};
+    const CLUSTER: u64 = 65536;
+    const BLOCK: usize = 4096;
+    let mut zstd = std::process::Command::new("zstd")
+        .args(["-dc", "--"])
+        .arg(archive)
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("zstd, to read a VMA archive: {e}"))?;
+    let mut input = io::BufReader::with_capacity(1 << 20, zstd.stdout.take().expect("piped"));
+    let mut header = vec![0u8; 4096 + 256 * 32];
+    input
+        .read_exact(&mut header)
+        .map_err(|e| format!("{}: {e}", archive.display()))?;
+    if &header[..4] != b"VMA\0" {
+        return Err(format!("{}: not a VMA archive", archive.display()));
+    }
+    let be32 = |at: usize| u32::from_be_bytes(header[at..at + 4].try_into().expect("4 bytes"));
+    let header_size = be32(56) as usize;
+    let size = u64::from_be_bytes(header[4096 + 32 + 8..4096 + 32 + 16].try_into().expect("8 bytes"));
+    if size == 0 {
+        return Err(format!("{}: the VMA's first device has no size", archive.display()));
+    }
+    let mut rest = vec![0u8; header_size.saturating_sub(header.len())];
+    input.read_exact(&mut rest).map_err(|e| e.to_string())?;
+    let raw = qcow2.with_extension("raw");
+    let mut out = fs::File::create(&raw).map_err(|e| format!("{}: {e}", raw.display()))?;
+    out.set_len(size).map_err(|e| e.to_string())?;
+    let mut extent = [0u8; 512];
+    let mut block = [0u8; BLOCK];
+    loop {
+        match input.read_exact(&mut extent) {
+            Ok(()) => {}
+            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break,
+            Err(e) => return Err(e.to_string()),
+        }
+        if &extent[..4] != b"VMAE" {
+            return Err(format!("{}: a VMA extent without its magic", archive.display()));
+        }
+        for i in 0..59 {
+            let at = 40 + i * 8;
+            let info = u64::from_be_bytes(extent[at..at + 8].try_into().expect("8 bytes"));
+            let (mask, device, cluster) = (info >> 48, (info >> 32) & 0xff, info & 0xffff_ffff);
+            for b in 0..16u64 {
+                if mask & (1 << b) == 0 {
+                    continue;
+                }
+                input.read_exact(&mut block).map_err(|e| e.to_string())?;
+                if device == 1 {
+                    out.seek(SeekFrom::Start(cluster * CLUSTER + b * BLOCK as u64))
+                        .and_then(|_| out.write_all(&block))
+                        .map_err(|e| e.to_string())?;
+                }
+            }
+        }
+    }
+    drop(out);
+    let _ = zstd.wait();
+    let converted = std::process::Command::new(crate::qemu::qemu_img_binary())
+        .args(["convert", "-q", "-f", "raw", "-O", "qcow2"])
+        .arg(&raw)
+        .arg(qcow2)
+        .status()
+        .map_err(|e| format!("qemu-img: {e}"))?;
+    let _ = fs::remove_file(&raw);
+    if !converted.success() {
+        let _ = fs::remove_file(qcow2);
+        return Err(format!("qemu-img convert of {} failed", raw.display()));
+    }
+    Ok(())
+}
+
 /// Removes old versions of an image to keep the cache clean.
 fn remove_stale(dir: &Path, keep: &str) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
     let keep_kernel = Path::new(keep).with_extension("kernel");
+    // A Hydra VMA's disk, extracted beside it, and the kernel taken from it.
+    let converted = format!("{keep}.qcow2");
+    let converted_kernel = Path::new(&converted).with_extension("kernel");
     for entry in entries.flatten() {
         let name = entry.file_name();
         let name = name.to_string_lossy();
@@ -488,6 +601,8 @@ fn remove_stale(dir: &Path, keep: &str) {
             || name == ".lock"
             || name == format!("{keep}.verified")
             || Path::new(&*name) == keep_kernel
+            || name == converted
+            || Path::new(&*name) == converted_kernel
             || name.ends_with(".part");
         if !wanted {
             let path = entry.path();
@@ -546,6 +661,25 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
                 url,
                 file,
                 checksum,
+            })
+        }
+        Source::HydraVma { jobset, job } => {
+            let latest = format!("https://hydra.nixos.org/job/nixos/{jobset}/{job}/latest-finished");
+            let build: serde_json::Value = serde_json::from_str(&fetch_json(&latest).await?)
+                .map_err(|e| format!("{latest}: {e}"))?;
+            let id = build["id"]
+                .as_u64()
+                .ok_or_else(|| format!("{latest}: no build id"))?;
+            let product = &build["buildproducts"]["1"];
+            let (Some(file), Some(checksum)) =
+                (product["name"].as_str(), product["sha256hash"].as_str())
+            else {
+                return Err(format!("{latest}: no product with a name and a sha256"));
+            };
+            Ok(Resolved {
+                url: format!("https://hydra.nixos.org/build/{id}/download/1/{file}"),
+                file: file.to_string(),
+                checksum: checksum.to_string(),
             })
         }
         Source::Fedora { skip, arch } => {
@@ -718,6 +852,24 @@ fn hash_file(path: &Path, hex_len: usize) -> io::Result<String> {
 async fn fetch_text(url: &str) -> Result<String, String> {
     let out = Command::new("curl")
         .args(["-fsSL", "--retry", "2", "--connect-timeout", "15", url])
+        .kill_on_drop(true)
+        .output()
+        .await
+        .map_err(|e| format!("curl not found: {e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "{url}: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+/// A JSON document, which Hydra serves only when asked for one.
+async fn fetch_json(url: &str) -> Result<String, String> {
+    let out = Command::new("curl")
+        .args(["-fsSL", "--retry", "2", "--connect-timeout", "15"])
+        .args(["-H", "Accept: application/json", url])
         .kill_on_drop(true)
         .output()
         .await
