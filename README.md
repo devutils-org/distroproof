@@ -17,6 +17,8 @@
 - Compare failures with passing targets; export JSON, JUnit or Markdown reports.
 
 The probe, VM matrix, reporting and TUI are implemented as a proof of concept.
+The image catalog includes Debian 10–13 and sid, Ubuntu 18.04–24.04, Rocky
+8/9, Fedora latest/previous, Arch, Gentoo and Alpine: 16 images in total.
 
 ## In practice: Omniscient
 
@@ -30,6 +32,17 @@ CAP_PERFMON should allow, eBPF maps charged to a 64 KiB `RLIMIT_MEMLOCK` on
 version assumptions RHEL's backports disproved -- each tied to the envprobe
 fact that explained it. The case study, finding by finding:
 [What distroproof found in Omniscient](https://github.com/moha-bekh/omniscient/blob/main/docs/distroproof.md).
+
+The latest campaign ran all 21 targets in about 12 minutes with four VMs
+at a time. After the fixes, no source run listed as usable refused at start;
+refusal reasons agreed with envprobe on every target. Reference comparisons
+on six distributions still have open differences; the campaign does not
+cover aarch64, containers or NixOS.
+
+Use `[run].file_caps` to test capabilities on an installed binary,
+`[run].collect` to retrieve result files per target, and `DP_TARGET` / `DP_IMAGE`
+in guest scripts. envprobe now reports the function tracer configuration and
+soft/hard memlock limits. See the [matrix reference](REFERENCE.md#targets).
 
 ## Install
 
