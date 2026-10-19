@@ -68,6 +68,9 @@ impl Payload<'_> {
         let file = File::create(path).map_err(|e| format!("{}: {e}", path.display()))?;
         let mut tar = tar::Builder::new(file);
         tar.follow_symlinks(false);
+        // A file with holes would go in as a GNU sparse entry (typeflag 'S'),
+        // which Alpine's busybox tar refuses: "unknown typeflag: 0x53".
+        tar.sparse(false);
         let spec = self.spec;
         let run_steps = !self.prepare_only;
 
