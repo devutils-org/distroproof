@@ -29,7 +29,8 @@ runcmd:
           mkdir -p /distroproof && tar -xf "/dev/${d##*/}" -C /distroproof && exec sh /distroproof/agent.sh
         fi
       done
-      echo "@ FATAL payload disk not found" > /dev/ttyS1
+      ch=/dev/ttyS1; [ -e /dev/virtio-ports/org.distroproof.agent ] && ch=/dev/virtio-ports/org.distroproof.agent
+      echo "@ FATAL payload disk not found" > "$ch"
 "#;
     let meta_data = format!("instance-id: {instance}\nlocal-hostname: {instance}\n");
     iso::build(

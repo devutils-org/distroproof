@@ -18,7 +18,9 @@
 
 The probe, VM matrix, reporting and TUI are implemented as a proof of concept.
 The image catalog includes Debian 10–13 and sid, Ubuntu 18.04–24.04, Rocky
-8/9, Fedora latest/previous, Arch, Gentoo and Alpine: 16 images in total.
+8/9, Fedora latest/previous, Arch, Gentoo and Alpine on x86_64, and Debian 13,
+Ubuntu 24.04 and Fedora latest on aarch64 (emulated on an x86_64 host): 19
+images in total.
 
 ## In practice: Omniscient
 

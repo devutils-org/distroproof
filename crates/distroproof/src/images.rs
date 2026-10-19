@@ -35,12 +35,41 @@ enum Source {
         suffix: &'static str,
         checksum_suffix: &'static str,
     },
-    /// A Fedora release that publishes a Cloud Generic image: the latest
-    /// when `skip` is 0, the one before it when 1.
-    Fedora { skip: usize },
+    /// A Fedora release that publishes a Cloud Generic image for `arch`: the
+    /// latest when `skip` is 0, the one before it when 1.
+    Fedora { skip: usize, arch: Arch },
     /// Gentoo's latest cloud-init disk image, named by the autobuilds'
     /// `latest-<build>.txt`, with its `.sha256` beside it.
     GentooLatest { build: &'static str },
+}
+
+/// The machine an image is built for. An image of another architecture than
+/// the host's runs under emulation (TCG): slower, and the same kernel and
+/// userspace a machine of that architecture boots.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Arch {
+    X86_64,
+    Aarch64,
+}
+
+impl Arch {
+    /// The architecture distroproof runs on.
+    pub fn host() -> Arch {
+        if cfg!(target_arch = "aarch64") {
+            Arch::Aarch64
+        } else {
+            Arch::X86_64
+        }
+    }
+
+    /// `uname -m`'s name, which Fedora's mirrors also use.
+    pub fn uname(self) -> &'static str {
+        match self {
+            Arch::X86_64 => "x86_64",
+            Arch::Aarch64 => "aarch64",
+        }
+    }
 }
 
 pub struct ImageDef {
@@ -49,7 +78,9 @@ pub struct ImageDef {
     source: Source,
     /// Booting from disk requires UEFI: the image's BIOS grub reboots the
     /// machine right away (Rocky 9, Debian 13). Direct boot does without it.
+    /// An aarch64 machine has no BIOS: every aarch64 image says true.
     pub uefi: bool,
+    pub arch: Arch,
 }
 
 pub const CATALOG: &[ImageDef] = &[
@@ -61,6 +92,7 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://cloud.debian.org/images/cloud/buster/latest/SHA512SUMS",
         },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "debian-11",
@@ -70,6 +102,7 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://cloud.debian.org/images/cloud/bullseye/latest/SHA512SUMS",
         },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "debian-12",
@@ -79,6 +112,7 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://cloud.debian.org/images/cloud/bookworm/latest/SHA512SUMS",
         },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "debian-13",
@@ -89,6 +123,7 @@ pub const CATALOG: &[ImageDef] = &[
         },
         // The image's BIOS grub reboots the machine as soon as the kernel loads.
         uefi: true,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "debian-sid",
@@ -99,6 +134,7 @@ pub const CATALOG: &[ImageDef] = &[
         },
         // As Debian 13's: the BIOS grub reboots as soon as the kernel loads.
         uefi: true,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "ubuntu-18.04",
@@ -108,6 +144,7 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://cloud-images.ubuntu.com/releases/18.04/release/SHA256SUMS",
         },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "ubuntu-20.04",
@@ -117,6 +154,7 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://cloud-images.ubuntu.com/releases/20.04/release/SHA256SUMS",
         },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "ubuntu-22.04",
@@ -126,6 +164,7 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://cloud-images.ubuntu.com/releases/22.04/release/SHA256SUMS",
         },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "ubuntu-24.04",
@@ -135,6 +174,7 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://cloud-images.ubuntu.com/releases/24.04/release/SHA256SUMS",
         },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "rocky-9",
@@ -144,6 +184,7 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2.CHECKSUM",
         },
         uefi: true,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "rocky-8",
@@ -153,18 +194,27 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://dl.rockylinux.org/pub/rocky/8/images/x86_64/Rocky-8-GenericCloud-Base.latest.x86_64.qcow2.CHECKSUM",
         },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "fedora-latest",
         description: "Latest Fedora Cloud Base Generic",
-        source: Source::Fedora { skip: 0 },
+        source: Source::Fedora {
+            skip: 0,
+            arch: Arch::X86_64,
+        },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "fedora-previous",
         description: "The Fedora release before the latest, Cloud Base Generic",
-        source: Source::Fedora { skip: 1 },
+        source: Source::Fedora {
+            skip: 1,
+            arch: Arch::X86_64,
+        },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "arch",
@@ -174,6 +224,7 @@ pub const CATALOG: &[ImageDef] = &[
             checksums: "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2.SHA256",
         },
         uefi: false,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "gentoo",
@@ -184,6 +235,7 @@ pub const CATALOG: &[ImageDef] = &[
         // A GPT disk with an EFI system partition and no BIOS boot code:
         // under SeaBIOS the machine read its first sector and spun there.
         uefi: true,
+        arch: Arch::X86_64,
     },
     ImageDef {
         name: "alpine",
@@ -195,6 +247,39 @@ pub const CATALOG: &[ImageDef] = &[
             checksum_suffix: ".sha512",
         },
         uefi: false,
+        arch: Arch::X86_64,
+    },
+    // --- aarch64, under emulation on an x86_64 host (TCG): the same kernels
+    // and userspaces an arm64 machine boots, from the same publishers.
+    ImageDef {
+        name: "debian-13-arm64",
+        description: "Debian 13 trixie, generic kernel, arm64",
+        source: Source::Direct {
+            url: "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-arm64.qcow2",
+            checksums: "https://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS",
+        },
+        uefi: true,
+        arch: Arch::Aarch64,
+    },
+    ImageDef {
+        name: "ubuntu-24.04-arm64",
+        description: "Ubuntu 24.04 LTS, arm64, kernel 6.8",
+        source: Source::Direct {
+            url: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img",
+            checksums: "https://cloud-images.ubuntu.com/releases/24.04/release/SHA256SUMS",
+        },
+        uefi: true,
+        arch: Arch::Aarch64,
+    },
+    ImageDef {
+        name: "fedora-latest-aarch64",
+        description: "Latest Fedora Cloud Base Generic, aarch64",
+        source: Source::Fedora {
+            skip: 0,
+            arch: Arch::Aarch64,
+        },
+        uefi: true,
+        arch: Arch::Aarch64,
     },
 ];
 
@@ -222,6 +307,7 @@ pub struct Image {
     pub path: PathBuf,
     pub file: String,
     pub uefi: bool,
+    pub arch: Arch,
 }
 
 impl Image {
@@ -383,6 +469,7 @@ impl Store {
             path,
             file: resolved.file,
             uefi: def.uefi,
+            arch: def.arch,
         })
     }
 }
@@ -461,7 +548,7 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
                 checksum,
             })
         }
-        Source::Fedora { skip } => {
+        Source::Fedora { skip, arch } => {
             // The primary mirror rather than the download.fedoraproject.org
             // redirector: a mirror that is not yet in sync lists the new
             // release without its images.
@@ -474,7 +561,7 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
             let mut last = "no release listed".to_string();
             let mut skipped = 0;
             for release in releases.into_iter().take(3 + skip) {
-                let index = format!("{base}{release}/Cloud/x86_64/images/");
+                let index = format!("{base}{release}/Cloud/{}/images/", arch.uname());
                 let html = match fetch_text(&index).await {
                     Ok(html) => html,
                     Err(e) => {

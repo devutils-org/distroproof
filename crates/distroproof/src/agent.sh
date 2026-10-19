@@ -2,7 +2,9 @@
 # distroproof guest agent, run as root by cloud-init (runcmd) from the payload
 # disk extracted into /distroproof.
 #
-# Channel to the host: /dev/ttyS1, one line per message.
+# Channel to the host, one line per message: /dev/ttyS1 (COM2) on x86_64,
+# the virtio-serial port `org.distroproof.agent` on aarch64, whose `virt`
+# machine has one UART.
 #   @ READY <uptime>          agent started
 #   @ STAGE <stage>           stage start (setup, probe, command, kernel)
 #   @ EXIT <stage> <code>     stage end
@@ -17,6 +19,15 @@ set -u
 D=/distroproof
 OUT=$D/out
 CH=/dev/ttyS1
+CONSOLE=/dev/ttyS0
+PORT=/dev/virtio-ports/org.distroproof.agent
+if [ "$(uname -m)" = aarch64 ]; then
+    CONSOLE=/dev/ttyAMA0
+    # udev names the port a moment after the device appears.
+    i=0
+    while [ ! -e "$PORT" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+fi
+[ -e "$PORT" ] && CH=$PORT
 PATH=$D/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
@@ -206,15 +217,16 @@ say DONE
 if [ "${DP_HOLD:-0}" = 1 ]; then
     # VM kept up for debugging: root shell on the serial console, instead
     # of the getty.
-    systemctl stop serial-getty@ttyS0.service 2>/dev/null
-    if grep -q ttyS0 /etc/inittab 2>/dev/null; then
-        sed -i '/ttyS0/d' /etc/inittab && kill -HUP 1
-        pkill -f 'getty.*ttyS0' 2>/dev/null
+    tty=${CONSOLE#/dev/}
+    systemctl stop "serial-getty@$tty.service" 2>/dev/null
+    if grep -q "$tty" /etc/inittab 2>/dev/null; then
+        sed -i "/$tty/d" /etc/inittab && kill -HUP 1
+        pkill -f "getty.*$tty" 2>/dev/null
     fi
-    stty -F /dev/ttyS0 sane 2>/dev/null
-    printf '\r\ndistroproof: command finished, root shell on the console.\r\n' >/dev/ttyS0
+    stty -F "$CONSOLE" sane 2>/dev/null
+    printf '\r\ndistroproof: command finished, root shell on the console.\r\n' >"$CONSOLE"
     while :; do
-        setsid sh -c 'exec sh -i </dev/ttyS0 >/dev/ttyS0 2>&1' || sleep 1
+        setsid sh -c "exec sh -i <$CONSOLE >$CONSOLE 2>&1" || sleep 1
     done
 fi
 poweroff -f 2>/dev/null || echo o >/proc/sysrq-trigger

@@ -10,7 +10,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::event::{Control, Emitter, Metrics, Stage, Stream, VmEvent};
 use crate::guest::{self, GuestOutput, Payload};
-use crate::images::{self, DirectKernel, Image, Store};
+use crate::images::{self, Arch, DirectKernel, Image, Store};
 use crate::metrics::Sampler;
 use crate::model::{Outcome, StageResult, TargetResult, VmSpec};
 use crate::qemu::{self, KernelBoot, Machine, Qmp, RunDir};
@@ -39,6 +39,30 @@ pub enum Stop {
 }
 
 impl Runner {
+    /// The static envprobe for a guest of `arch`: the one found for the host,
+    /// or for another architecture `$DISTROPROOF_ENVPROBE_AARCH64`, else the
+    /// same build for that target beside it
+    /// (`target/aarch64-unknown-linux-musl/release/envprobe`).
+    fn envprobe_for(&self, arch: Arch) -> Result<PathBuf, String> {
+        if arch == Arch::host() {
+            return Ok(self.envprobe.clone());
+        }
+        if let Some(path) = std::env::var_os("DISTROPROOF_ENVPROBE_AARCH64") {
+            return Ok(path.into());
+        }
+        let host = format!("{}-unknown-linux-musl", Arch::host().uname());
+        let other = format!("{}-unknown-linux-musl", arch.uname());
+        let sibling = PathBuf::from(self.envprobe.to_string_lossy().replace(&host, &other));
+        if sibling != self.envprobe && sibling.is_file() {
+            return Ok(sibling);
+        }
+        Err(format!(
+            "no static envprobe for {}: `cargo zigbuild --release --target {other} -p envprobe` \
+             or set DISTROPROOF_ENVPROBE_AARCH64",
+            arch.uname()
+        ))
+    }
+
     /// Runs a target and returns its result; never panics on an environment
     /// error (missing image, QEMU failing to start…).
     pub async fn run(
@@ -75,6 +99,22 @@ impl Runner {
     ) -> Result<BootEnd, String> {
         let image = self.store.ensure(&spec.image, ev).await?;
         result.image_file = Some(image.file.clone());
+        if image.arch != Arch::host() {
+            // Another architecture boots from its disk through its firmware:
+            // its kernel is not extracted for a direct boot (an arm64
+            // `vmlinuz` is often an EFI zboot image QEMU cannot load), so its
+            // command line cannot be changed.
+            if spec.kernel_cmdline.is_some() {
+                return Err(format!(
+                    "{}: kernel_cmdline needs a direct boot, which an {} image does not have",
+                    image.name,
+                    image.arch.uname()
+                ));
+            }
+            return self
+                .boot(spec, &image, None, false, false, ev, ctrl, result, started)
+                .await;
+        }
 
         let mut kernel = image.direct_kernel();
         if spec.kernel_cmdline.is_some() && kernel.is_none() {
@@ -147,7 +187,7 @@ impl Runner {
         fs::write(&seed, guest::seed_iso(&instance)).map_err(|e| e.to_string())?;
         {
             let spec = spec.clone();
-            let envprobe = self.envprobe.clone();
+            let envprobe = self.envprobe_for(image.arch)?;
             let payload = payload.clone();
             tokio::task::spawn_blocking(move || {
                 Payload {
@@ -189,12 +229,17 @@ impl Runner {
         // OVMF and a copy of its variables.
         let vars = rd.path("efivars.fd");
         let ovmf = if image.uefi && kernel_boot.is_none() {
-            let ovmf = qemu::find_ovmf().ok_or_else(|| {
-                format!(
+            let ovmf = qemu::find_ovmf(image.arch).ok_or_else(|| match image.arch {
+                Arch::X86_64 => format!(
                     "{} boots with UEFI: install OVMF (edk2-ovmf) or set \
                      DISTROPROOF_OVMF_CODE and DISTROPROOF_OVMF_VARS",
                     image.name
-                )
+                ),
+                Arch::Aarch64 => format!(
+                    "{} boots with UEFI: install AAVMF (edk2-aarch64, qemu-efi-aarch64) \
+                     or set DISTROPROOF_AAVMF_CODE and DISTROPROOF_AAVMF_VARS",
+                    image.name
+                ),
             })?;
             fs::copy(&ovmf.vars, &vars).map_err(|e| format!("{}: {e}", ovmf.vars.display()))?;
             Some(ovmf)
@@ -203,6 +248,7 @@ impl Runner {
         };
         let machine = Machine {
             name: &spec.name,
+            arch: image.arch,
             memory_mib: spec.memory_mib,
             cpus: spec.cpus,
             pmu: spec.pmu,

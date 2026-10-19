@@ -127,6 +127,16 @@ automatic fallback to TCG otherwise) and OVMF (`edk2-ovmf`, `ovmf`) for images
 that only boot with UEFI. Binaries can be chosen with `DISTROPROOF_QEMU`,
 `DISTROPROOF_QEMU_IMG`, `DISTROPROOF_OVMF_CODE` and `DISTROPROOF_OVMF_VARS`.
 
+The aarch64 images also need `qemu-system-aarch64`, AAVMF (`edk2-aarch64`,
+`qemu-efi-aarch64`) and a static aarch64 envprobe (`cargo zigbuild --release
+--target aarch64-unknown-linux-musl -p envprobe`, found beside the x86_64 one).
+On an x86_64 host they run under TCG, multi-threaded: the arm64 kernel and
+userspace a machine boots, at a tenth of the speed (55 s to 1m40 to boot).
+They boot from disk through the firmware, never directly, so they take no
+`kernel_cmdline`. Their binaries can be chosen with `DISTROPROOF_QEMU_AARCH64`,
+`DISTROPROOF_AAVMF_CODE`, `DISTROPROOF_AAVMF_VARS` and
+`DISTROPROOF_ENVPROBE_AARCH64`.
+
 ### Targets
 
 | Image | Observed kernel | Notes |
@@ -139,6 +149,7 @@ that only boot with UEFI. Binaries can be chosen with `DISTROPROOF_QEMU`,
 | `arch` | rolling | |
 | `gentoo` | 6.18 dist-kernel | the autobuilds' latest cloud-init image, OpenRC; boots with UEFI |
 | `alpine` | 6.18 `virt` | musl, busybox |
+| `debian-13-arm64`, `ubuntu-24.04-arm64`, `fedora-latest-aarch64` | 6.12, 6.8, 6.19 | aarch64 under TCG on an x86_64 host; UEFI (AAVMF); the agent's channel is a virtio-serial port |
 
 Images are downloaded once, verified against the checksum published by the
 distro and kept in `$XDG_CACHE_HOME/distroproof/images`. Each run works on a
@@ -149,7 +160,9 @@ Ctrl+C; QEMU dies with distroproof.
 
 - QEMU starts paused (`-S`); distroproof connects to its QMP socket and to the
   two serial ports (console on ttyS0, agent channel on ttyS1), then starts the
-  VM.
+  VM. aarch64's `virt` machine has one UART: the console is ttyAMA0 and the
+  agent's channel the virtio-serial port `org.distroproof.agent`, named so
+  that no getty is started on it.
 - cloud-init (NoCloud seed written in Rust) extracts a payload disk (raw tar
   archive: agent, static `envprobe`, working directory) and starts the agent.
   The agent applies the sysctls, creates the test user, runs `envprobe` then

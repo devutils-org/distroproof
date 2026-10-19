@@ -11,9 +11,16 @@ use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::UnixStream;
 use tokio::process::Command;
 
-/// QEMU binary: `$DISTROPROOF_QEMU` or `qemu-system-x86_64` from PATH.
-pub fn qemu_binary() -> OsString {
-    env::var_os("DISTROPROOF_QEMU").unwrap_or_else(|| "qemu-system-x86_64".into())
+use crate::images::Arch;
+
+/// QEMU binary for `arch`: `$DISTROPROOF_QEMU` (x86_64) or
+/// `$DISTROPROOF_QEMU_AARCH64`, else `qemu-system-<arch>` from PATH.
+pub fn qemu_binary(arch: Arch) -> OsString {
+    let var = match arch {
+        Arch::X86_64 => "DISTROPROOF_QEMU",
+        Arch::Aarch64 => "DISTROPROOF_QEMU_AARCH64",
+    };
+    env::var_os(var).unwrap_or_else(|| format!("qemu-system-{}", arch.uname()).into())
 }
 
 pub fn qemu_img_binary() -> OsString {
@@ -35,19 +42,41 @@ pub struct Ovmf {
     pub vars: PathBuf,
 }
 
-/// Looks for OVMF: `$DISTROPROOF_OVMF_CODE` and `$DISTROPROOF_OVMF_VARS`, then
-/// the locations used by the Arch, Debian/Ubuntu, Fedora and QEMU packages.
-pub fn find_ovmf() -> Option<Ovmf> {
-    if let (Some(code), Some(vars)) = (
-        env::var_os("DISTROPROOF_OVMF_CODE"),
-        env::var_os("DISTROPROOF_OVMF_VARS"),
-    ) {
+/// Looks for the UEFI firmware of `arch`: `$DISTROPROOF_OVMF_CODE` and
+/// `$DISTROPROOF_OVMF_VARS` (`$DISTROPROOF_AAVMF_*` for aarch64), then the
+/// locations used by the Arch, Debian/Ubuntu, Fedora and QEMU packages.
+pub fn find_ovmf(arch: Arch) -> Option<Ovmf> {
+    let (code_var, vars_var) = match arch {
+        Arch::X86_64 => ("DISTROPROOF_OVMF_CODE", "DISTROPROOF_OVMF_VARS"),
+        Arch::Aarch64 => ("DISTROPROOF_AAVMF_CODE", "DISTROPROOF_AAVMF_VARS"),
+    };
+    if let (Some(code), Some(vars)) = (env::var_os(code_var), env::var_os(vars_var)) {
         return Some(Ovmf {
             code: code.into(),
             vars: vars.into(),
         });
     }
-    const PAIRS: &[(&str, &str)] = &[
+    // edk2-aarch64 (Arch), qemu-efi-aarch64 (Debian), edk2-aarch64 (Fedora),
+    // QEMU's own: both files padded to the 64 MiB pflash of `virt`.
+    const AARCH64: &[(&str, &str)] = &[
+        (
+            "/usr/share/edk2/aarch64/QEMU_EFI.fd",
+            "/usr/share/edk2/aarch64/QEMU_VARS.fd",
+        ),
+        (
+            "/usr/share/AAVMF/AAVMF_CODE.fd",
+            "/usr/share/AAVMF/AAVMF_VARS.fd",
+        ),
+        (
+            "/usr/share/edk2/aarch64/QEMU_EFI-pflash.raw",
+            "/usr/share/edk2/aarch64/vars-template-pflash.raw",
+        ),
+        (
+            "/usr/share/qemu/edk2-aarch64-code.fd",
+            "/usr/share/qemu/edk2-arm-vars.fd",
+        ),
+    ];
+    const X86_64: &[(&str, &str)] = &[
         (
             "/usr/share/edk2/x64/OVMF_CODE.4m.fd",
             "/usr/share/edk2/x64/OVMF_VARS.4m.fd",
@@ -69,7 +98,11 @@ pub fn find_ovmf() -> Option<Ovmf> {
             "/usr/share/qemu/edk2-i386-vars.fd",
         ),
     ];
-    PAIRS.iter().find_map(|(code, vars)| {
+    let pairs = match arch {
+        Arch::X86_64 => X86_64,
+        Arch::Aarch64 => AARCH64,
+    };
+    pairs.iter().find_map(|(code, vars)| {
         let (code, vars) = (Path::new(code), Path::new(vars));
         (code.is_file() && vars.is_file()).then(|| Ovmf {
             code: code.to_path_buf(),
@@ -127,6 +160,7 @@ pub struct KernelBoot<'a> {
 
 pub struct Machine<'a> {
     pub name: &'a str,
+    pub arch: Arch,
     pub memory_mib: u64,
     pub cpus: u32,
     pub pmu: bool,
@@ -145,9 +179,15 @@ pub struct Machine<'a> {
 impl Machine<'_> {
     /// QEMU command line. The VM starts paused (`-S`): the host connects to
     /// every socket before starting it, so nothing is lost.
+    ///
+    /// An image of the host's architecture runs under KVM when it is usable;
+    /// another architecture always under TCG, multi-threaded. aarch64 runs on
+    /// `virt`, which has one UART: the agent's channel is a virtio-serial
+    /// port there (`/dev/virtio-ports/org.distroproof.agent` in the guest),
+    /// named rather than a console so no getty is started on it.
     pub fn command(&self) -> Command {
-        let mut cmd = Command::new(qemu_binary());
-        let kvm = kvm_available();
+        let mut cmd = Command::new(qemu_binary(self.arch));
+        let kvm = self.arch == Arch::host() && kvm_available();
         let cpu = match (kvm, self.pmu) {
             (true, true) => "host".to_string(),
             (true, false) => "host,pmu=off".to_string(),
@@ -158,10 +198,11 @@ impl Machine<'_> {
             .arg(format!("distroproof-{}", self.name))
             .args([
                 "-machine",
-                if kvm {
-                    "q35,accel=kvm"
-                } else {
-                    "q35,accel=tcg"
+                match (self.arch, kvm) {
+                    (Arch::X86_64, true) => "q35,accel=kvm",
+                    (Arch::X86_64, false) => "q35",
+                    (Arch::Aarch64, true) => "virt,gic-version=max,accel=kvm",
+                    (Arch::Aarch64, false) => "virt,gic-version=max",
                 },
             ])
             .args(["-cpu", &cpu])
@@ -175,14 +216,27 @@ impl Machine<'_> {
             v.push(escape_opt(vars));
             cmd.arg("-drive").arg(c).arg("-drive").arg(v);
         }
+        if !kvm {
+            cmd.args(["-accel", "tcg,thread=multi"]);
+        }
         cmd.arg("-qmp")
             .arg(unix_server(self.qmp))
             .arg("-chardev")
             .arg(socket_chardev("console", self.console))
             .args(["-serial", "chardev:console"])
             .arg("-chardev")
-            .arg(socket_chardev("agent", self.agent))
-            .args(["-serial", "chardev:agent"]);
+            .arg(socket_chardev("agent", self.agent));
+        match self.arch {
+            Arch::X86_64 => {
+                cmd.args(["-serial", "chardev:agent"]);
+            }
+            Arch::Aarch64 => {
+                cmd.args(["-device", "virtio-serial-pci"]).args([
+                    "-device",
+                    "virtserialport,chardev=agent,name=org.distroproof.agent",
+                ]);
+            }
+        }
         let disks = [
             (self.overlay, "qcow2", "dp-root", false),
             (self.seed, "raw", "dp-seed", true),
