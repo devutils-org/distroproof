@@ -531,9 +531,16 @@ fn vma_to_qcow2(archive: &Path, qcow2: &Path) -> Result<(), String> {
     }
     let be32 = |at: usize| u32::from_be_bytes(header[at..at + 4].try_into().expect("4 bytes"));
     let header_size = be32(56) as usize;
-    let size = u64::from_be_bytes(header[4096 + 32 + 8..4096 + 32 + 16].try_into().expect("8 bytes"));
+    let size = u64::from_be_bytes(
+        header[4096 + 32 + 8..4096 + 32 + 16]
+            .try_into()
+            .expect("8 bytes"),
+    );
     if size == 0 {
-        return Err(format!("{}: the VMA's first device has no size", archive.display()));
+        return Err(format!(
+            "{}: the VMA's first device has no size",
+            archive.display()
+        ));
     }
     let mut rest = vec![0u8; header_size.saturating_sub(header.len())];
     input.read_exact(&mut rest).map_err(|e| e.to_string())?;
@@ -549,7 +556,10 @@ fn vma_to_qcow2(archive: &Path, qcow2: &Path) -> Result<(), String> {
             Err(e) => return Err(e.to_string()),
         }
         if &extent[..4] != b"VMAE" {
-            return Err(format!("{}: a VMA extent without its magic", archive.display()));
+            return Err(format!(
+                "{}: a VMA extent without its magic",
+                archive.display()
+            ));
         }
         for i in 0..59 {
             let at = 40 + i * 8;
@@ -664,7 +674,8 @@ async fn resolve(def: &ImageDef) -> Result<Resolved, String> {
             })
         }
         Source::HydraVma { jobset, job } => {
-            let latest = format!("https://hydra.nixos.org/job/nixos/{jobset}/{job}/latest-finished");
+            let latest =
+                format!("https://hydra.nixos.org/job/nixos/{jobset}/{job}/latest-finished");
             let build: serde_json::Value = serde_json::from_str(&fetch_json(&latest).await?)
                 .map_err(|e| format!("{latest}: {e}"))?;
             let id = build["id"]
