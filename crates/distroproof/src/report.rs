@@ -59,7 +59,8 @@ fn weight(section: &str, key: &str) -> u32 {
         ("shell" | "cgroups", _) => 4,
         ("fhs" | "modules", _) => 3,
         ("init" | "packages", _) => 2,
-        ("identity" | "xdg", _) => 1,
+        // the machine, not what it runs: rarely why a program fails
+        ("identity" | "xdg" | "hardware", _) => 1,
         _ => 2,
     }
 }

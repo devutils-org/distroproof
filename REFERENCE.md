@@ -47,6 +47,9 @@ demo on real VMs: [`scripts/demo.sh`](scripts/demo.sh) and
 program behaves:
 
 - **Identity**: distro, family, arch, virtualization, container.
+- **Hardware**: CPU model, logical CPUs and physical cores, maximum frequency,
+  memory and swap, NUMA nodes, graphics cards (driver and PCI id), disks (kind
+  and size).
 - **Kernel**: release, cmdline, config (`CONFIG_BPF*`, `KPROBES`, `DEBUG_INFO_BTF`…), modules.
 - **Security and privileges**: sysctls, LSM, SELinux, AppArmor, lockdown, Secure Boot,
   capabilities, seccomp, user namespaces.
@@ -54,9 +57,11 @@ program behaves:
   `bpf()` calls; software and hardware `perf_event_open`, PMU; tracefs, kallsyms, BTF.
 - **Userspace**: libc and its version, common libraries, FHS (merged-usr,
   multiarch), `/bin/sh`, coreutils, init, package manager, cgroups, XDG.
+- **Toolchain**: the versions of gcc, clang, rustc, cargo, go, python3, make,
+  cmake and ld found on `PATH`, each asked once with a three-second limit.
 
 Features are probed directly, never inferred from a version number, because
-RHEL kernels backport a lot. The probe is read-only and never crashes: missing
+RHEL kernels backport a lot. The probe is read-only (the toolchain section only asks each tool its version) and never crashes: missing
 or denied information shows up with its reason.
 
 ```sh

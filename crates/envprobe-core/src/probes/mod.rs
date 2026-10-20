@@ -5,6 +5,7 @@ pub mod btf;
 pub mod cgroups;
 pub mod clib;
 pub mod fhs;
+pub mod hardware;
 pub mod identity;
 pub mod init;
 pub mod kernel;
@@ -16,6 +17,7 @@ pub mod privileges;
 pub mod security;
 pub mod shell;
 pub mod sysctl;
+pub mod toolchain;
 pub mod tracing;
 pub mod xdg;
 
@@ -25,6 +27,7 @@ pub type Probe = fn() -> Section;
 
 pub const ALL: &[(&str, Probe)] = &[
     ("identity", identity::probe),
+    ("hardware", hardware::probe),
     ("kernel", kernel::probe),
     ("modules", modules::probe),
     ("sysctl", sysctl::probe),
@@ -36,6 +39,7 @@ pub const ALL: &[(&str, Probe)] = &[
     ("tracing", tracing::probe),
     ("libc", clib::probe),
     ("libs", libs::probe),
+    ("toolchain", toolchain::probe),
     ("fhs", fhs::probe),
     ("shell", shell::probe),
     ("init", init::probe),

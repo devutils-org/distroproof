@@ -143,5 +143,5 @@ fn probe_all_covers_every_category_without_panicking() {
         .collect();
     let expected: Vec<&str> = envprobe_core::section_names().collect();
     assert_eq!(names, expected);
-    assert_eq!(names.len(), 18);
+    assert_eq!(names.len(), 20);
 }
