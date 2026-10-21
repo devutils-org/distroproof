@@ -55,8 +55,9 @@ Download the archive for your machine from the
 or aarch64), verify it, and put its directory on your `PATH`:
 
 ```sh
-gh attestation verify distroproof-v0.1.0-x86_64-unknown-linux-musl.tar.gz --repo devutils-org/distroproof
-tar xzf distroproof-v0.1.0-x86_64-unknown-linux-musl.tar.gz
+curl -fLO https://github.com/devutils-org/distroproof/releases/download/v0.1.0/distroproof-v0.1.0-x86_64-unknown-linux-musl.tar.gz && \
+gh attestation verify distroproof-v0.1.0-x86_64-unknown-linux-musl.tar.gz --repo devutils-org/distroproof && \
+tar xzf distroproof-v0.1.0-x86_64-unknown-linux-musl.tar.gz && \
 export PATH="$PWD/distroproof-v0.1.0-x86_64-unknown-linux-musl:$PATH"
 ```
 
