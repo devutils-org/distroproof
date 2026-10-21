@@ -92,7 +92,8 @@ Start with the [example matrix](distroproof.toml). `up` opens a TUI in a termina
 
 [Probe, VM and TUI reference](REFERENCE.md) ·
 [Walkthrough](docs/how-to-use/demo.md) · [Roadmap](docs/ROADMAP.md) ·
-[Report schema](schema/envprobe-report.schema.json)
+[Report schema](schema/envprobe-report.schema.json) · [Changelog](CHANGELOG.md) ·
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ## Development
 
