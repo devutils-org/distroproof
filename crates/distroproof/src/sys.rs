@@ -58,3 +58,24 @@ pub fn kill_with_parent(cmd: &mut tokio::process::Command) {
         });
     }
 }
+
+/// The child process, QEMU and its vCPU threads, runs only on `cpus`.
+pub fn set_affinity(cmd: &mut tokio::process::Command, cpus: &[usize]) {
+    // SAFETY: an all-zero cpu_set_t is the empty set; CPU_SET writes one bit
+    // of it and ignores CPUs beyond its size.
+    let mut set: libc::cpu_set_t = unsafe { std::mem::zeroed() };
+    for &cpu in cpus {
+        unsafe { libc::CPU_SET(cpu, &mut set) };
+    }
+    // SAFETY: the closure only makes a sched_setaffinity call on a set it owns,
+    // allowed between fork and exec (async-signal-safe), without allocating.
+    unsafe {
+        cmd.pre_exec(move || {
+            if libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set) == 0 {
+                Ok(())
+            } else {
+                Err(std::io::Error::last_os_error())
+            }
+        });
+    }
+}

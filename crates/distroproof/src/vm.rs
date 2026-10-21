@@ -29,6 +29,8 @@ pub struct Runner {
     pub direct_boot: bool,
     /// Keep the run directories for debugging.
     pub keep: bool,
+    /// One L3 cache domain per VM (`up --pin-cache`).
+    pub cache_pool: Option<crate::cache::Pool>,
 }
 
 /// End of run requested from outside.
@@ -73,7 +75,13 @@ impl Runner {
     ) -> (TargetResult, Option<Stop>) {
         let start = Instant::now();
         let mut result = TargetResult::new(spec);
-        let end = match self.run_inner(spec, ev, ctrl, &mut result, start).await {
+        // Held until the VM is gone, then free for the next one.
+        let lease = self.cache_pool.as_ref().and_then(crate::cache::Pool::take);
+        let pin = lease.as_ref().map(|l| l.cpus.as_slice());
+        let end = match self
+            .run_inner(spec, ev, ctrl, &mut result, start, pin)
+            .await
+        {
             Ok(end) => end,
             Err(err) => {
                 result.outcome = Outcome::Error;
@@ -96,6 +104,7 @@ impl Runner {
         ctrl: &mut UnboundedReceiver<Control>,
         result: &mut TargetResult,
         started: Instant,
+        pin: Option<&[usize]>,
     ) -> Result<BootEnd, String> {
         let image = self.store.ensure(&spec.image, ev).await?;
         result.image_file = Some(image.file.clone());
@@ -112,7 +121,9 @@ impl Runner {
                 ));
             }
             return self
-                .boot(spec, &image, None, false, false, ev, ctrl, result, started)
+                .boot(
+                    spec, &image, None, false, false, ev, ctrl, result, started, pin,
+                )
                 .await;
         }
 
@@ -129,7 +140,9 @@ impl Runner {
                 ev.emit(VmEvent::Preparing);
                 let mut prep = TargetResult::new(spec);
                 let end = self
-                    .boot(spec, &image, None, true, true, ev, ctrl, &mut prep, started)
+                    .boot(
+                        spec, &image, None, true, true, ev, ctrl, &mut prep, started, pin,
+                    )
                     .await?;
                 if let Some(stop) = end.stop {
                     result.outcome = Outcome::Killed;
@@ -148,7 +161,7 @@ impl Runner {
         let kernel = kernel.filter(|_| self.direct_boot || spec.kernel_cmdline.is_some());
         let extract = image.direct_kernel().is_none();
         self.boot(
-            spec, &image, kernel, extract, false, ev, ctrl, result, started,
+            spec, &image, kernel, extract, false, ev, ctrl, result, started, pin,
         )
         .await
     }
@@ -165,6 +178,7 @@ impl Runner {
         ctrl: &mut UnboundedReceiver<Control>,
         result: &mut TargetResult,
         started: Instant,
+        pin: Option<&[usize]>,
     ) -> Result<BootEnd, String> {
         let mut rd = RunDir::create(&spec.name)?;
         rd.keep = self.keep;
@@ -264,6 +278,13 @@ impl Runner {
         };
         let mut cmd = machine.command();
         crate::sys::kill_with_parent(&mut cmd);
+        if let Some(cpus) = pin {
+            crate::sys::set_affinity(&mut cmd, cpus);
+            ev.info(format!(
+                "pinned to CPUs {} (one L3 cache of its own)",
+                crate::cache::format_list(cpus)
+            ));
+        }
         let mut child = cmd
             .stdin(Stdio::null())
             .stdout(Stdio::null())

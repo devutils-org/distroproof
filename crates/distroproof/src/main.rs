@@ -1,6 +1,7 @@
 //! distroproof: runs a program in VMs booted on the real kernel of each
 //! target distro, and collects its output.
 
+mod cache;
 mod config;
 mod dirs;
 mod event;
@@ -129,6 +130,11 @@ struct UpArgs {
     /// Runs only these targets (comma-separated names).
     #[arg(long, value_delimiter = ',')]
     only: Vec<String>,
+    /// Gives each VM a last-level (L3) cache of its own, for runs that measure
+    /// performance: QEMU is pinned to that cache's CPUs, and --jobs is capped
+    /// at the number of caches.
+    #[arg(long)]
+    pin_cache: bool,
     /// JSON matrix report.
     #[arg(long, value_name = "FILE")]
     json: Option<PathBuf>,
@@ -245,6 +251,7 @@ fn runner(common: &Common) -> Result<Runner, String> {
         envprobe: find_envprobe(common.envprobe.as_deref())?,
         direct_boot: !common.no_direct_boot,
         keep: common.keep,
+        cache_pool: None,
     })
 }
 
@@ -485,8 +492,30 @@ async fn cmd_up(args: UpArgs) -> Result<ExitCode, String> {
     }
     let use_tui =
         args.tui || (!args.no_tui && io::stdout().is_terminal() && io::stdin().is_terminal());
-    let runner = runner(&args.common)?;
-    let jobs = args.jobs.unwrap_or_else(default_jobs);
+    let mut runner = runner(&args.common)?;
+    let mut jobs = args.jobs.unwrap_or_else(default_jobs);
+    if args.pin_cache {
+        let domains = cache::l3_domains(Path::new("/sys/devices/system/cpu"));
+        if domains.is_empty() {
+            return Err("--pin-cache: sysfs describes no L3 cache on this host".into());
+        }
+        let smallest = domains.iter().map(Vec::len).min().unwrap_or(0);
+        if let Some((s, _)) = specs.iter().find(|(s, _)| s.cpus as usize > smallest) {
+            return Err(format!(
+                "--pin-cache: target \"{}\" asks for {} CPUs, but an L3 cache serves {smallest}",
+                s.name, s.cpus
+            ));
+        }
+        if jobs > domains.len() {
+            eprintln!(
+                "distroproof: --pin-cache: {} L3 caches, so {} VMs at a time instead of {jobs}",
+                domains.len(),
+                domains.len()
+            );
+            jobs = domains.len();
+        }
+        runner.cache_pool = Some(cache::Pool::new(domains));
+    }
     let (tx, rx) = mpsc::unbounded_channel();
 
     if use_tui {

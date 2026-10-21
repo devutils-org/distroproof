@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `distroproof up --pin-cache`: each VM gets a last-level cache of its own
+  (QEMU pinned to one L3 domain), so VMs measuring performance can run in
+  parallel; `--jobs` is capped at the number of domains.
+
 ## 0.1.0 — 2026-10-21
 
 First release: static x86_64 and aarch64 binaries of `distroproof` and `envprobe`,

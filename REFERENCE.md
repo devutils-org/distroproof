@@ -241,6 +241,20 @@ taken right before the command, then:
   the suspicious difference (missing BTF, paranoid set to 3, musl…);
 - writes `--json`, `--junit` (CI) and `--markdown` (PR comment) on request.
 
+VMs that run at the same time share the host's caches, which moves
+performance measurements taken inside them (cache misses, scheduler latency).
+`--pin-cache` gives each VM a last-level (L3) cache of its own: QEMU and its
+vCPU threads are pinned to the CPUs of one L3 domain read from
+`/sys/devices/system/cpu`, a VM takes a free domain when it starts and returns
+it when it stops, and `--jobs` is capped at the number of domains (four on a
+Ryzen 9 3900X, one on most Intel desktops). A target asking for more CPUs than
+a domain has is refused before any VM starts.
+
+Measured on that 3900X with Omniscient's cross-tool chain (nine targets, its
+reference pairs compare omn with perf, bcc and bpftrace inside each guest): four
+pinned VMs at a time failed the same pairs as one VM at a time, and fewer of the
+load-sensitive ones (one against three).
+
 ```text
 [ubuntu-18.04] failed (code 1)
   compared with ubuntu-22.04: 65 significant differences
