@@ -16,7 +16,8 @@
 - Run the same program in QEMU VMs on each target distro's own kernel.
 - Compare failures with passing targets; export JSON, JUnit or Markdown reports.
 
-The probe, VM matrix, reporting and TUI are implemented as a proof of concept.
+Version 0.1: the probe, VM matrix, reporting and TUI are implemented, and every
+phase of the [roadmap](docs/ROADMAP.md) is done.
 The image catalog includes Debian 10–13 and sid, Ubuntu 18.04–24.04, Rocky
 8/9, Fedora latest/previous, Arch, Gentoo, Alpine and NixOS on x86_64, and
 Debian 13, Ubuntu 24.04 and Fedora latest on aarch64 (emulated on an x86_64
@@ -49,7 +50,20 @@ soft/hard memlock limits. See the [matrix reference](REFERENCE.md#targets).
 
 ## Install
 
-From a source checkout with Rust:
+Download the archive for your machine from the
+[releases](https://github.com/devutils-org/distroproof/releases) (static, x86_64
+or aarch64), verify it, and put its directory on your `PATH`:
+
+```sh
+gh attestation verify distroproof-v0.1.0-x86_64-unknown-linux-musl.tar.gz --repo devutils-org/distroproof
+tar xzf distroproof-v0.1.0-x86_64-unknown-linux-musl.tar.gz
+export PATH="$PWD/distroproof-v0.1.0-x86_64-unknown-linux-musl:$PATH"
+```
+
+For the aarch64 images, unpack the aarch64 archive beside the x86_64 one: its
+envprobe is found there.
+
+Or from a source checkout with Rust:
 
 ```sh
 rustup target add x86_64-unknown-linux-musl

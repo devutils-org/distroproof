@@ -1,0 +1,89 @@
+# Push a tag such as v0.1.0 to build static distroproof and envprobe binaries,
+# attest their build provenance (Sigstore) and open a draft release with them.
+# Review the draft on GitHub, then publish it.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build (${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-22.04, arch: x86_64 }
+          - { os: ubuntu-22.04-arm, arch: aarch64 }
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    env:
+      TARGET: ${{ matrix.arch }}-unknown-linux-musl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Tag matches Cargo.toml
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          test "v$version" = "$GITHUB_REF_NAME" || {
+            echo "tag $GITHUB_REF_NAME, but Cargo.toml says $version"; exit 1; }
+      - run: cargo test --workspace --locked
+      - run: cargo build --release --locked --target "$TARGET"
+      - name: Check that the binaries are static
+        run: |
+          for bin in distroproof envprobe; do
+            file "target/$TARGET/release/$bin" | grep -Eq 'statically linked|static-pie linked'
+            "target/$TARGET/release/$bin" --version
+          done
+      - name: Package
+        run: |
+          # The directory keeps the target triple: unpacked side by side, the
+          # x86_64 distroproof finds the aarch64 envprobe for arm64 guests.
+          dir=distroproof-$GITHUB_REF_NAME-$TARGET
+          mkdir "$dir"
+          cp target/$TARGET/release/distroproof target/$TARGET/release/envprobe \
+            README.md REFERENCE.md distroproof.toml LICENSE-MIT LICENSE-APACHE "$dir"/
+          tar czf "$dir.tar.gz" "$dir"
+          sha256sum "$dir.tar.gz" > "$dir.tar.gz.sha256"
+          echo "ARCHIVE=$dir.tar.gz" >> "$GITHUB_ENV"
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ env.ARCHIVE }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distroproof-${{ matrix.arch }}
+          path: |
+            ${{ env.ARCHIVE }}
+            ${{ env.ARCHIVE }}.sha256
+
+  release:
+    name: Draft release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - run: cd dist && sha256sum *.tar.gz > SHA256SUMS
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "distroproof $GITHUB_REF_NAME" --generate-notes
