@@ -13,6 +13,7 @@ mod metrics;
 mod model;
 mod progress;
 mod qemu;
+mod remote;
 mod report;
 mod sys;
 mod tui;
@@ -292,6 +293,7 @@ async fn cmd_run(args: RunArgs) -> Result<ExitCode, String> {
     let spec = VmSpec {
         name: args.target.clone(),
         image: args.target.clone(),
+        ssh: None,
         memory_mib: config::parse_size_mib(&args.memory)?,
         cpus: args.cpus.clamp(1, 64),
         timeout: config::parse_duration(&args.timeout)?,

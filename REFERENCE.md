@@ -162,6 +162,40 @@ distro and kept in `$XDG_CACHE_HOME/distroproof/images`. Each run works on a
 throwaway qcow2 overlay that is deleted at the end, even after a timeout or a
 Ctrl+C; QEMU dies with distroproof.
 
+#### Machines already running: `ssh`
+
+A target can name a machine instead of an image: bare metal a VM cannot
+stand in for (Intel PT, topdown, uncore, `resctrl`, a GPU), or a cloud
+instance.
+
+```toml
+[[target]]
+name = "xeon-metal"
+ssh = "ubuntu@203.0.113.10"   # user@host, or a host alias of ~/.ssh/config
+port = 2222                   # optional
+identity = "~/.ssh/metal"     # optional; else ssh's agent and config
+timeout = "30m"
+```
+
+The same payload and agent run there: distroproof sends the archive into a
+fresh `mktemp -d` under `$TMPDIR` (else `/var/tmp`), runs the agent in a
+session of its own with ssh's standard output as its channel, reads its
+output archive back, and removes the directory -- after ending the agent's
+session, the command's children with it, if it still runs (a timeout, a
+Ctrl+C). A test user the agent created is deleted. What `setup` installs, it
+installs for good: the host is the test's.
+
+- The agent needs root: log in as root, or as a user with passwordless
+  `sudo`; otherwise the target fails, and says so. ssh never prompts
+  (`BatchMode=yes`), and a host that does not answer within 20 s is a failed
+  target with ssh's reason.
+- `memory`, `cpus`, `kernel_cmdline`, `pmu` and `sysctl` describe a VM and
+  are refused on an ssh target, at their line: the machine's are its own,
+  and a sysctl written there would outlive the run.
+- `DP_IMAGE` is `ssh`. `--hold` keeps nothing up.
+- `$DISTROPROOF_SSH` replaces `ssh` (the tests use a stand-in that runs the
+  command locally in a user namespace).
+
 ### How it works
 
 - QEMU starts paused (`-S`); distroproof connects to its QMP socket and to the

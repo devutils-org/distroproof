@@ -114,6 +114,7 @@ mod tests {
         VmSpec {
             name: name.into(),
             image: image.into(),
+            ssh: None,
             memory_mib: 1024,
             cpus: 2,
             timeout: Duration::from_secs(60),

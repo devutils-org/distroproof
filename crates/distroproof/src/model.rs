@@ -12,8 +12,10 @@ use serde::{Deserialize, Serialize};
 pub struct VmSpec {
     /// Unique name in the matrix.
     pub name: String,
-    /// Catalog image (`debian-12`, `rocky-8`…).
+    /// Catalog image (`debian-12`, `rocky-8`…), or `ssh` for an ssh target.
     pub image: String,
+    /// A machine already running, reached over SSH, instead of a VM.
+    pub ssh: Option<SshHost>,
     pub memory_mib: u64,
     pub cpus: u32,
     pub timeout: Duration,
@@ -48,6 +50,16 @@ pub struct VmSpec {
     /// Paths, relative to the working directory, copied back after the
     /// command into `<workdir>/.distroproof/collect/<target>/`.
     pub collect: Vec<String>,
+}
+
+/// How an ssh target is reached.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SshHost {
+    /// `user@host`, `host`, or an alias of `~/.ssh/config`.
+    pub host: String,
+    pub port: Option<u16>,
+    /// The private key, when it is not the agent's or the config's.
+    pub identity: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

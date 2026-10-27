@@ -1,6 +1,8 @@
 #!/bin/sh
 # distroproof guest agent, run as root by cloud-init (runcmd) from the payload
-# disk extracted into /distroproof.
+# disk extracted into /distroproof -- or, on an ssh target, by distroproof
+# over ssh from the payload extracted into a fresh directory (DP_DIR), with
+# its standard output as the channel and no VM to power off.
 #
 # Channel to the host, one line per message: /dev/ttyS1 (COM2) on x86_64,
 # the virtio-serial port `org.distroproof.agent` on aarch64, whose `virt`
@@ -16,25 +18,34 @@
 # Full outputs, exit codes and the envprobe report are written to a tar
 # archive on the output disk (serial dp-output).
 set -u
-D=/distroproof
+D=${DP_DIR:-/distroproof}
 OUT=$D/out
 CH=/dev/ttyS1
 CONSOLE=/dev/ttyS0
 PORT=/dev/virtio-ports/org.distroproof.agent
-if [ "$(uname -m)" = aarch64 ]; then
+REMOTE=${DP_DIR:+1}
+if [ -n "$REMOTE" ]; then
+    : # the channel is ssh's standard output, below
+elif [ "$(uname -m)" = aarch64 ]; then
     CONSOLE=/dev/ttyAMA0
     # udev names the port a moment after the device appears.
     i=0
     while [ ! -e "$PORT" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
 fi
-[ -e "$PORT" ] && CH=$PORT
+[ -z "$REMOTE" ] && [ -e "$PORT" ] && CH=$PORT
 # NixOS keeps its tools in the system profile, none in the FHS paths, and
 # cloud-init's own PATH is the one that found them: both kept behind.
 PATH=$D/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/run/wrappers/bin:/run/current-system/sw/bin:${PATH:-}
 export PATH
 
-stty -F $CH raw -echo 2>/dev/null || stty raw -echo <$CH 2>/dev/null
-exec 3>$CH
+if [ -n "$REMOTE" ]; then
+    # The channel is what ssh reads; anything else the agent prints goes to
+    # its standard error, never between two messages.
+    exec 3>&1 1>&2
+else
+    stty -F $CH raw -echo 2>/dev/null || stty raw -echo <$CH 2>/dev/null
+    exec 3>$CH
+fi
 say() { printf '@ %s\n' "$*" >&3; }
 warn() { say WARN "$*"; echo "$*" >>"$OUT/warnings"; }
 
@@ -86,11 +97,15 @@ run() {
 # Test user. as_user <script> gives the command that runs the script under
 # that user's identity, with the requested capabilities.
 as_user() { echo "sh $1"; }
+created_user=""
 if [ "$DP_USER" != root ]; then
     if ! id "$DP_USER" >/dev/null 2>&1; then
-        useradd -m -s /bin/sh "$DP_USER" 2>/dev/null ||
-            adduser -D -s /bin/sh "$DP_USER" 2>/dev/null ||
+        if useradd -m -s /bin/sh "$DP_USER" 2>/dev/null ||
+            adduser -D -s /bin/sh "$DP_USER" 2>/dev/null; then
+            created_user=1
+        else
             warn "cannot create user $DP_USER"
+        fi
     fi
     home=$(getent passwd "$DP_USER" 2>/dev/null | cut -d: -f6)
     [ -n "$home" ] || home=/home/$DP_USER
@@ -212,6 +227,17 @@ if [ "$DP_EXTRACT_KERNEL" = 1 ]; then
     fi
 fi
 
+if [ -n "$REMOTE" ]; then
+    # A machine that outlives the run keeps no account the run made: the
+    # directory itself is removed by distroproof once the output is read.
+    if [ -n "$created_user" ]; then
+        userdel -r "$DP_USER" 2>/dev/null || deluser --remove-home "$DP_USER" 2>/dev/null ||
+            warn "cannot remove user $DP_USER, created for the run"
+    fi
+    tar -cf "$D/output.tar" -C "$OUT" . 2>/dev/null || warn "cannot write the output archive"
+    say DONE
+    exit 0
+fi
 if out=$(disk dp-output); then
     tar -cf "$out" -C "$OUT" . 2>/dev/null || warn "cannot write the output disk"
 else

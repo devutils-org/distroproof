@@ -13,6 +13,11 @@ fn xdg(var: &str, fallback: &str) -> PathBuf {
     }
 }
 
+/// `$HOME`, or `/tmp` without one.
+pub fn home() -> PathBuf {
+    env::var_os("HOME").map_or_else(|| PathBuf::from("/tmp"), PathBuf::from)
+}
+
 /// `$XDG_CACHE_HOME/distroproof`.
 pub fn cache() -> PathBuf {
     xdg("XDG_CACHE_HOME", ".cache").join("distroproof")

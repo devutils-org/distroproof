@@ -14,6 +14,10 @@ pub fn probe() -> Section {
     s.push("cpus", cpus());
     s.push("cores", cores());
     s.push("cpu_max_mhz", max_mhz());
+    s.push("cpufreq_driver", cpufreq_driver());
+    s.push("pmu_name", pmu_name());
+    s.push("thermal_throttle", thermal_throttle());
+    s.push("resctrl", resctrl());
     let meminfo = fs::read_to_string("/proc/meminfo").unwrap_or_default();
     s.push("memory", meminfo_size(&meminfo, "MemTotal:"));
     s.push("swap", meminfo_size(&meminfo, "SwapTotal:"));
@@ -97,6 +101,74 @@ fn max_mhz() -> Value {
             Err(_) => Value::unavailable("cpuinfo_max_freq is not a number"),
         },
         Err(_) => Value::unavailable("no cpufreq for cpu0 (a VM, or no frequency driver)"),
+    }
+}
+
+/// The frequency driver, and its mode where it has one: whether it
+/// announces each transition (the `power:cpu_frequency` tracepoint) depends
+/// on both (`amd-pstate-epp (active)` does not, `acpi-cpufreq` does).
+fn cpufreq_driver() -> Value {
+    let read = |path: &str| fs::read_to_string(path).ok().map(|s| s.trim().to_string());
+    let Some(driver) = read("/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver") else {
+        return Value::unavailable("no cpufreq for cpu0 (a VM, or no frequency driver)");
+    };
+    let mode = read("/sys/devices/system/cpu/amd_pstate/status")
+        .or_else(|| read("/sys/devices/system/cpu/intel_pstate/status"));
+    Value::ok(match mode {
+        Some(mode) => format!("{driver} ({mode})"),
+        None => driver,
+    })
+}
+
+/// The core PMU's own name (`sapphire_rapids`, `alderlake_hybrid`), which
+/// says which events -- topdown, PEBS -- it has. Intel's PMUs publish it;
+/// others do not.
+fn pmu_name() -> Value {
+    for pmu in ["cpu", "cpu_core"] {
+        let path = format!("/sys/bus/event_source/devices/{pmu}/caps/pmu_name");
+        if let Ok(name) = fs::read_to_string(path) {
+            return Value::ok(name.trim());
+        }
+    }
+    Value::unavailable("the core PMU publishes no name: not an Intel PMU, or a VM")
+}
+
+/// Intel's per-cpu throttling counters, which a VM does not have.
+fn thermal_throttle() -> Value {
+    if fs::metadata("/sys/devices/system/cpu/cpu0/thermal_throttle").is_ok() {
+        Value::ok("present")
+    } else {
+        Value::unavailable("no thermal_throttle for cpu0: not Intel, or a VM")
+    }
+}
+
+/// Intel RDT / AMD PQoS through resctrl: mounted with its monitoring
+/// features (`mbm_total_bytes` is memory bandwidth), supported and not
+/// mounted, or absent.
+fn resctrl() -> Value {
+    let mounts = fs::read_to_string("/proc/mounts").unwrap_or_default();
+    let mounted = mounts
+        .lines()
+        .find(|l| l.split_whitespace().nth(2) == Some("resctrl"))
+        .and_then(|l| l.split_whitespace().nth(1).map(str::to_string));
+    if let Some(at) = mounted {
+        let features = fs::read_to_string(format!("{at}/info/L3_MON/mon_features"))
+            .map(|f| f.split_whitespace().collect::<Vec<_>>().join(", "))
+            .unwrap_or_default();
+        return Value::ok(if features.is_empty() {
+            format!("mounted at {at}, no monitoring")
+        } else {
+            format!("mounted at {at} ({features})")
+        });
+    }
+    let filesystems = fs::read_to_string("/proc/filesystems").unwrap_or_default();
+    if filesystems
+        .lines()
+        .any(|l| l.split_whitespace().last() == Some("resctrl"))
+    {
+        Value::ok("supported, not mounted")
+    } else {
+        Value::unavailable("no resctrl in this kernel or on this processor")
     }
 }
 

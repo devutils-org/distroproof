@@ -13,7 +13,7 @@ use serde::Deserialize;
 use toml::Spanned;
 
 use crate::images;
-use crate::model::VmSpec;
+use crate::model::{SshHost, VmSpec};
 
 pub const DEFAULT_FILE: &str = "distroproof.toml";
 
@@ -80,7 +80,12 @@ struct RawDefaults {
 #[serde(deny_unknown_fields)]
 struct RawTarget {
     name: Spanned<String>,
-    image: Spanned<String>,
+    image: Option<Spanned<String>>,
+    /// A machine already running, reached over SSH (`user@host`, or a host
+    /// alias of `~/.ssh/config`), instead of an image booted in a VM.
+    ssh: Option<Spanned<String>>,
+    port: Option<Spanned<i64>>,
+    identity: Option<Spanned<String>>,
     memory: Option<Spanned<String>>,
     cpus: Option<Spanned<i64>>,
     timeout: Option<Spanned<String>>,
@@ -287,16 +292,42 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
         if !names.insert(name.clone()) {
             return Err(ctx.error(t.name.span(), format!("target \"{name}\" already defined")));
         }
-        if images::find(t.image.get_ref()).is_none() {
-            return Err(ctx.error(
-                t.image.span(),
-                format!(
-                    "unknown image \"{}\" (known: {})",
-                    t.image.get_ref(),
-                    images::names().join(", ")
-                ),
-            ));
-        }
+        let ssh = match (&t.image, &t.ssh) {
+            (Some(image), Some(_)) => {
+                return Err(ctx.error(
+                    image.span(),
+                    "a target is either an image or an ssh host, not both",
+                ))
+            }
+            (None, None) => {
+                return Err(ctx.error(
+                    t.name.span(),
+                    format!("target \"{name}\" has neither image nor ssh"),
+                ))
+            }
+            (Some(image), None) => {
+                if images::find(image.get_ref()).is_none() {
+                    return Err(ctx.error(
+                        image.span(),
+                        format!(
+                            "unknown image \"{}\" (known: {})",
+                            image.get_ref(),
+                            images::names().join(", ")
+                        ),
+                    ));
+                }
+                if let Some(port) = &t.port {
+                    return Err(ctx.error(port.span(), "port only applies to an ssh target"));
+                }
+                if let Some(identity) = &t.identity {
+                    return Err(
+                        ctx.error(identity.span(), "identity only applies to an ssh target")
+                    );
+                }
+                None
+            }
+            (None, Some(host)) => Some(check_ssh(t, host, base, &ctx)?),
+        };
         let memory_mib = match &t.memory {
             Some(m) => parse_size_mib(m.get_ref()).map_err(|e| ctx.error(m.span(), e))?,
             None => def_memory,
@@ -379,7 +410,11 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
         }
         targets.push(VmSpec {
             name: name.clone(),
-            image: t.image.get_ref().clone(),
+            image: t
+                .image
+                .as_ref()
+                .map_or_else(|| SSH_IMAGE.to_string(), |i| i.get_ref().clone()),
+            ssh,
             memory_mib,
             cpus,
             timeout,
@@ -404,6 +439,83 @@ pub fn parse(path: &Path, text: &str) -> Result<Config, ConfigError> {
         });
     }
     Ok(Config { targets })
+}
+
+/// What an ssh target's `image` reads as, in reports and in `DP_IMAGE`.
+pub const SSH_IMAGE: &str = "ssh";
+
+/// An ssh target: its host, port and key, and none of the settings that only
+/// describe a VM -- a running machine's memory, kernel and PMU are its own,
+/// and a sysctl written there would outlive the run.
+fn check_ssh(
+    t: &RawTarget,
+    host: &Spanned<String>,
+    base: &Path,
+    ctx: &Ctx,
+) -> Result<SshHost, ConfigError> {
+    let h = host.get_ref();
+    if h.is_empty()
+        || h.starts_with('-')
+        || !h
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "._-@:[]".contains(c))
+    {
+        return Err(ctx.error(host.span(), format!("invalid ssh host \"{h}\"")));
+    }
+    let vm_only = [
+        ("memory", t.memory.as_ref().map(Spanned::span)),
+        ("cpus", t.cpus.as_ref().map(Spanned::span)),
+        (
+            "kernel_cmdline",
+            t.kernel_cmdline.as_ref().map(Spanned::span),
+        ),
+        ("sysctl", t.sysctl.keys().next().map(Spanned::span)),
+    ];
+    for (key, span) in vm_only {
+        if let Some(span) = span {
+            return Err(ctx.error(
+                span,
+                format!(
+                    "{key} describes a VM; an ssh target is a machine already running, \
+                     whose {key} is its own"
+                ),
+            ));
+        }
+    }
+    if t.pmu.is_some() {
+        return Err(ctx.error(
+            host.span(),
+            "pmu describes a VM; an ssh target's PMU is its own",
+        ));
+    }
+    let port = match &t.port {
+        Some(p) => Some(
+            u16::try_from(*p.get_ref())
+                .ok()
+                .filter(|p| *p > 0)
+                .ok_or_else(|| ctx.error(p.span(), "port must be between 1 and 65535"))?,
+        ),
+        None => None,
+    };
+    let identity = match &t.identity {
+        Some(i) => {
+            let raw = i.get_ref();
+            let path = match raw.strip_prefix("~/") {
+                Some(rest) => crate::dirs::home().join(rest),
+                None => base.join(raw),
+            };
+            if !path.is_file() {
+                return Err(ctx.error(i.span(), format!("key not found: {}", path.display())));
+            }
+            Some(path)
+        }
+        None => None,
+    };
+    Ok(SshHost {
+        host: h.clone(),
+        port,
+        identity,
+    })
 }
 
 fn check_cpus(c: &Spanned<i64>, ctx: &Ctx) -> Result<u32, ConfigError> {
@@ -634,6 +746,68 @@ as_user = "test"
             parse_str(&int_sysctl).unwrap().targets[0].sysctl["kernel.perf_event_paranoid"],
             "3"
         );
+    }
+
+    /// An ssh target names a host, and is refused every setting that only
+    /// describes a VM, at its own line.
+    #[test]
+    fn ssh_targets() {
+        let ok = parse_str(
+            "[[target]]\nname = \"metal\"\nssh = \"ubuntu@203.0.113.10\"\nport = 2222\n\
+             timeout = \"30m\"\nas_user = \"test\"\n[run]\ncommand = \"true\"\n",
+        )
+        .unwrap();
+        let spec = &ok.targets[0];
+        assert_eq!(spec.image, SSH_IMAGE);
+        let host = spec.ssh.as_ref().unwrap();
+        assert_eq!(
+            (host.host.as_str(), host.port, host.identity.is_none()),
+            ("ubuntu@203.0.113.10", Some(2222), true)
+        );
+        let refused = |extra: &str, says: &str| {
+            let text = format!(
+                "[[target]]\nname = \"a\"\nssh = \"h\"\n{extra}\n[run]\ncommand = \"true\"\n"
+            );
+            let err = parse_str(&text).unwrap_err();
+            assert!(err.message.contains(says), "{extra}: {}", err.message);
+            assert_eq!(
+                err.line, 4,
+                "{extra}: the error is at the setting's own line"
+            );
+        };
+        refused("memory = \"4G\"", "describes a VM");
+        refused("cpus = 8", "describes a VM");
+        refused("kernel_cmdline = \"quiet\"", "describes a VM");
+        refused(
+            "sysctl = { \"kernel.perf_event_paranoid\" = 1 }",
+            "describes a VM",
+        );
+        refused("image = \"alpine\"", "either an image or an ssh host");
+        refused("port = 0", "between 1 and 65535");
+        refused("identity = \"no-such-key\"", "key not found");
+        let neither = parse_str("[[target]]\nname = \"a\"\n[run]\ncommand = \"true\"\n");
+        assert!(neither
+            .unwrap_err()
+            .message
+            .contains("neither image nor ssh"));
+        let port_on_vm = parse_str(
+            "[[target]]\nname = \"a\"\nimage = \"alpine\"\nport = 22\n[run]\ncommand = \"true\"\n",
+        );
+        assert!(port_on_vm
+            .unwrap_err()
+            .message
+            .contains("only applies to an ssh target"));
+        for host in ["-oProxyCommand=x", "a b", ""] {
+            let text =
+                format!("[[target]]\nname = \"a\"\nssh = \"{host}\"\n[run]\ncommand = \"true\"\n");
+            assert!(
+                parse_str(&text)
+                    .unwrap_err()
+                    .message
+                    .contains("invalid ssh host"),
+                "{host}"
+            );
+        }
     }
 
     #[test]

@@ -45,7 +45,7 @@ impl Runner {
     /// or for another architecture `$DISTROPROOF_ENVPROBE_AARCH64`, else the
     /// same build for that target beside it
     /// (`target/aarch64-unknown-linux-musl/release/envprobe`).
-    fn envprobe_for(&self, arch: Arch) -> Result<PathBuf, String> {
+    pub(crate) fn envprobe_for(&self, arch: Arch) -> Result<PathBuf, String> {
         if arch == Arch::host() {
             return Ok(self.envprobe.clone());
         }
@@ -78,10 +78,14 @@ impl Runner {
         // Held until the VM is gone, then free for the next one.
         let lease = self.cache_pool.as_ref().and_then(crate::cache::Pool::take);
         let pin = lease.as_ref().map(|l| l.cpus.as_slice());
-        let end = match self
-            .run_inner(spec, ev, ctrl, &mut result, start, pin)
-            .await
-        {
+        let ran = match &spec.ssh {
+            Some(host) => self.run_ssh(spec, host, ev, ctrl, &mut result).await,
+            None => {
+                self.run_inner(spec, ev, ctrl, &mut result, start, pin)
+                    .await
+            }
+        };
+        let end = match ran {
             Ok(end) => end,
             Err(err) => {
                 result.outcome = Outcome::Error;
@@ -519,13 +523,13 @@ impl Runner {
 
 /// End of a boot: requested stop, and result already published (VM kept up).
 #[derive(Debug, Default)]
-struct BootEnd {
+pub(crate) struct BootEnd {
     stop: Option<Stop>,
     emitted: bool,
 }
 
 impl BootEnd {
-    fn stopped(stop: Stop) -> Self {
+    pub(crate) fn stopped(stop: Stop) -> Self {
         BootEnd {
             stop: Some(stop),
             emitted: false,
@@ -533,7 +537,7 @@ impl BootEnd {
     }
 }
 
-async fn read_output(path: &Path) -> Result<GuestOutput, String> {
+pub(crate) async fn read_output(path: &Path) -> Result<GuestOutput, String> {
     let path = path.to_path_buf();
     let out = tokio::task::spawn_blocking(move || GuestOutput::read(&path))
         .await
@@ -545,13 +549,13 @@ async fn read_output(path: &Path) -> Result<GuestOutput, String> {
     Ok(out)
 }
 
-enum AgentMsg {
+pub(crate) enum AgentMsg {
     Done,
     Fatal(String),
     Other,
 }
 
-fn handle_agent_line(
+pub(crate) fn handle_agent_line(
     line: &str,
     ev: &Emitter,
     result: &mut TargetResult,
@@ -620,7 +624,12 @@ fn handle_agent_line(
     AgentMsg::Other
 }
 
-fn collect(out: &GuestOutput, spec: &VmSpec, prepare_only: bool, result: &mut TargetResult) {
+pub(crate) fn collect(
+    out: &GuestOutput,
+    spec: &VmSpec,
+    prepare_only: bool,
+    result: &mut TargetResult,
+) {
     let stage = |name: &str| StageResult {
         exit_code: out.code(name),
         stdout: out.text(&format!("{name}.out")).unwrap_or_default(),

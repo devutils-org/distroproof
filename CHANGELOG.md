@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **ssh targets**: `[[target]] ssh = "user@host"` runs the same agent on a
+  machine already running -- bare metal, a cloud instance -- for what a VM
+  hides (PT, topdown, uncore, `resctrl`, GPUs). The payload goes into a fresh
+  directory, the agent runs in its own session, and both are removed after
+  the run, a timeout or a Ctrl+C included; settings that only describe a VM
+  are refused.
+- **envprobe**: `hardware.cpufreq_driver` (the driver and its mode),
+  `hardware.pmu_name` (Intel's core PMU name), `hardware.thermal_throttle`,
+  and `hardware.resctrl` (mounted with its monitoring features, supported,
+  or absent).
+
 - `distroproof up --pin-cache`: each VM gets a last-level cache of its own
   (QEMU pinned to one L3 domain), so VMs measuring performance can run in
   parallel; `--jobs` is capped at the number of domains.

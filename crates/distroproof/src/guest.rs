@@ -96,7 +96,7 @@ impl Payload<'_> {
             ("job/env".into(), env.into_bytes(), 0o644),
             (
                 "job/probe.sh".into(),
-                b"exec /distroproof/bin/envprobe --json\n".to_vec(),
+                b"exec envprobe --json\n".to_vec(),
                 0o755,
             ),
         ];
